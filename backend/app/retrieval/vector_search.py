@@ -4,7 +4,7 @@ import json
 import math
 from collections.abc import Sequence
 
-from sqlalchemy import select, text
+from sqlalchemy import or_, select, text
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.indexing.database import HnswSearchOptions
@@ -18,6 +18,7 @@ VECTOR_COSINE_SQL = """
       AND embedding IS NOT NULL
       AND embedding_status = 'ready'
       AND index_status = 'ready'
+      {path_filter}
     ORDER BY embedding <=> :query_vector
     LIMIT :top_k
 """
@@ -47,6 +48,7 @@ class VectorSearcher:
         project_id: int,
         languages: Sequence[str] = ("java", "python"),
         top_k: int = 10,
+        target_paths: Sequence[str] = (),
     ) -> list[tuple[int, float]]:
         """Return (chunk_id, cosine_similarity) ordered by descending similarity."""
         if top_k < 1:
@@ -56,14 +58,16 @@ class VectorSearcher:
 
         if dialect_name == "postgresql":
             await self._hnsw.apply(session)
+            params: dict[str, object] = {
+                "query_vector": query_vector,
+                "project_id": project_id,
+                "languages": list(languages),
+                "top_k": top_k,
+            }
+            path_filter = self._path_filter(target_paths, params)
             result = await session.execute(
-                text(VECTOR_COSINE_SQL),
-                {
-                    "query_vector": query_vector,
-                    "project_id": project_id,
-                    "languages": list(languages),
-                    "top_k": top_k,
-                },
+                text(VECTOR_COSINE_SQL.format(path_filter=path_filter)),
+                params,
             )
             return [(int(row.id), float(row.similarity)) for row in result]
 
@@ -73,6 +77,7 @@ class VectorSearcher:
             project_id=project_id,
             languages=languages,
             top_k=top_k,
+            target_paths=target_paths,
         )
 
     async def _search_in_python(
@@ -83,8 +88,21 @@ class VectorSearcher:
         project_id: int,
         languages: Sequence[str],
         top_k: int,
+        target_paths: Sequence[str],
     ) -> list[tuple[int, float]]:
         """Load ready chunks and compute cosine similarity in-process (SQLite)."""
+        normalized_paths = [
+            path.strip().replace("\\", "/").rstrip("/") for path in target_paths if path.strip()
+        ]
+        path_predicates = []
+        for path in normalized_paths:
+            escaped_path = path.replace("%", "\\%").replace("_", "\\_")
+            path_predicates.append(
+                or_(
+                    CodeChunk.relative_path == path,
+                    CodeChunk.relative_path.like(f"{escaped_path}/%", escape="\\"),
+                )
+            )
         rows = await session.scalars(
             select(CodeChunk).where(
                 CodeChunk.project_id == project_id,
@@ -92,6 +110,7 @@ class VectorSearcher:
                 CodeChunk.embedding.is_not(None),
                 CodeChunk.embedding_status == "ready",
                 CodeChunk.index_status == "ready",
+                *((or_(*path_predicates),) if path_predicates else ()),
             )
         )
         scored: list[tuple[int, float]] = []
@@ -109,3 +128,24 @@ class VectorSearcher:
                 continue
         scored.sort(key=lambda pair: pair[1], reverse=True)
         return scored[:top_k]
+
+    @staticmethod
+    def _path_filter(target_paths: Sequence[str], params: dict[str, object]) -> str:
+        normalized = tuple(
+            dict.fromkeys(path.strip().replace("\\", "/").rstrip("/") for path in target_paths)
+        )
+        normalized = tuple(path for path in normalized if path)
+        if not normalized:
+            return ""
+
+        clauses: list[str] = []
+        for index, path in enumerate(normalized):
+            exact_key = f"path_{index}"
+            prefix_key = f"path_prefix_{index}"
+            escaped_path = path.replace("%", "\\%").replace("_", "\\_")
+            params[exact_key] = path
+            params[prefix_key] = f"{escaped_path}/%"
+            clauses.append(
+                f"(relative_path = :{exact_key} OR relative_path LIKE :{prefix_key} ESCAPE '\\')"
+            )
+        return "AND (" + " OR ".join(clauses) + ")"

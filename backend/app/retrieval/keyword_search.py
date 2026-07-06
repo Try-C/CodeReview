@@ -14,6 +14,8 @@ KEYWORD_SQL = """
       AND language = ANY(:languages)
       AND index_status = 'ready'
       AND search_vector IS NOT NULL
+      AND search_vector @@ plainto_tsquery('simple', :query)
+      {path_filter}
     ORDER BY rank DESC
     LIMIT :top_k
 """
@@ -30,6 +32,7 @@ FALLBACK_SQL = """
       AND language IN ({language_placeholders})
       AND index_status = 'ready'
       AND LOWER(search_text) LIKE '%' || LOWER(:term) || '%'
+      {path_filter}
     ORDER BY rank DESC
     LIMIT :top_k
 """
@@ -46,6 +49,7 @@ ILIKE_SYMBOL_SQL = """
         LOWER(symbol_name) LIKE '%' || LOWER(:term) || '%'
         OR LOWER(qualified_name) LIKE '%' || LOWER(:term) || '%'
       )
+      {path_filter}
     ORDER BY id
     LIMIT :top_k
 """
@@ -68,6 +72,7 @@ class KeywordSearcher:
         project_id: int,
         languages: Sequence[str] = ("java", "python"),
         top_k: int = 10,
+        target_paths: Sequence[str] = (),
     ) -> list[tuple[int, float]]:
         """Return (chunk_id, rank) ordered by descending relevance."""
         if top_k < 1 or not query.strip():
@@ -76,8 +81,12 @@ class KeywordSearcher:
         dialect_name = session.bind.dialect.name if session.bind is not None else "postgresql"
 
         if dialect_name == "postgresql":
-            return await self._search_postgresql(session, query, project_id, languages, top_k)
-        return await self._search_fallback(session, query, project_id, languages, top_k)
+            return await self._search_postgresql(
+                session, query, project_id, languages, top_k, target_paths
+            )
+        return await self._search_fallback(
+            session, query, project_id, languages, top_k, target_paths
+        )
 
     async def search_symbol_ilike(
         self,
@@ -87,6 +96,7 @@ class KeywordSearcher:
         project_id: int,
         languages: Sequence[str] = ("java", "python"),
         top_k: int = 10,
+        target_paths: Sequence[str] = (),
     ) -> list[tuple[int, float]]:
         """Last-resort ILIKE match on symbol_name / qualified_name (spec 11.4)."""
         if top_k < 1 or not query.strip():
@@ -101,9 +111,15 @@ class KeywordSearcher:
         }
         for i, lang in enumerate(lang_list):
             params[f"lang_{i}"] = lang
+        path_filter = self._path_filter(target_paths, params)
 
         result = await session.execute(
-            text(ILIKE_SYMBOL_SQL.format(language_placeholders=placeholders)),
+            text(
+                ILIKE_SYMBOL_SQL.format(
+                    language_placeholders=placeholders,
+                    path_filter=path_filter,
+                )
+            ),
             params,
         )
         return [(int(row.id), float(row.rank)) for row in result]
@@ -115,15 +131,18 @@ class KeywordSearcher:
         project_id: int,
         languages: Sequence[str],
         top_k: int,
+        target_paths: Sequence[str],
     ) -> list[tuple[int, float]]:
+        params: dict[str, object] = {
+            "query": query.strip(),
+            "project_id": project_id,
+            "languages": list(languages),
+            "top_k": top_k,
+        }
+        path_filter = self._path_filter(target_paths, params)
         result = await session.execute(
-            text(KEYWORD_SQL),
-            {
-                "query": query.strip(),
-                "project_id": project_id,
-                "languages": list(languages),
-                "top_k": top_k,
-            },
+            text(KEYWORD_SQL.format(path_filter=path_filter)),
+            params,
         )
         return [(int(row.id), float(row.rank)) for row in result]
 
@@ -134,6 +153,7 @@ class KeywordSearcher:
         project_id: int,
         languages: Sequence[str],
         top_k: int,
+        target_paths: Sequence[str],
     ) -> list[tuple[int, float]]:
         lang_list = list(languages)
         placeholders = ", ".join(f":lang_{i}" for i in range(len(lang_list)))
@@ -144,9 +164,37 @@ class KeywordSearcher:
         }
         for i, lang in enumerate(lang_list):
             params[f"lang_{i}"] = lang
+        path_filter = self._path_filter(target_paths, params)
 
         result = await session.execute(
-            text(FALLBACK_SQL.format(language_placeholders=placeholders)),
+            text(
+                FALLBACK_SQL.format(
+                    language_placeholders=placeholders,
+                    path_filter=path_filter,
+                )
+            ),
             params,
         )
         return [(int(row.id), float(row.rank)) for row in result]
+
+    @staticmethod
+    def _path_filter(target_paths: Sequence[str], params: dict[str, object]) -> str:
+        """Build a bound exact-file/directory-prefix filter."""
+        normalized = tuple(
+            dict.fromkeys(path.strip().replace("\\", "/").rstrip("/") for path in target_paths)
+        )
+        normalized = tuple(path for path in normalized if path)
+        if not normalized:
+            return ""
+
+        clauses: list[str] = []
+        for index, path in enumerate(normalized):
+            exact_key = f"path_{index}"
+            prefix_key = f"path_prefix_{index}"
+            escaped_path = path.replace("%", "\\%").replace("_", "\\_")
+            params[exact_key] = path
+            params[prefix_key] = f"{escaped_path}/%"
+            clauses.append(
+                f"(relative_path = :{exact_key} OR relative_path LIKE :{prefix_key} ESCAPE '\\')"
+            )
+        return "AND (" + " OR ".join(clauses) + ")"

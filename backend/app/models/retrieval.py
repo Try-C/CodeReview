@@ -36,6 +36,16 @@ class RetrievalRecord(Base):
         ),
         Index("ix_retrieval_records_task_id", "task_id"),
         Index("ix_retrieval_records_query_hash", "task_id", "query_hash"),
+        Index(
+            "uq_retrieval_records_empty_attempt",
+            "task_id",
+            "review_item_key",
+            "query_hash",
+            "retrieval_round",
+            unique=True,
+            postgresql_where=text("chunk_id IS NULL"),
+            sqlite_where=text("chunk_id IS NULL"),
+        ),
     )
 
     id: Mapped[int] = mapped_column(PRIMARY_KEY, primary_key=True, autoincrement=True)
@@ -57,6 +67,7 @@ class RetrievalRecord(Base):
     keyword_rank: Mapped[int | None] = mapped_column()
     rrf_score: Mapped[float | None] = mapped_column(Float)
     selected: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
+    degradation_reason: Mapped[str | None] = mapped_column(String(255))
     retrieval_round: Mapped[int] = mapped_column(nullable=False, default=1)
     created_at: Mapped[datetime] = mapped_column(
         nullable=False, server_default=text("CURRENT_TIMESTAMP")
