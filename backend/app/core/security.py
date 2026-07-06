@@ -78,3 +78,10 @@ class AccessTokenService:
         except (InvalidTokenError, KeyError, TypeError, ValueError) as exc:
             raise authentication_error() from exc
         return subject
+
+
+def get_token_service() -> AccessTokenService:
+    """Lazy dependency: build token service from cached settings."""
+    from app.core.config import get_settings
+
+    return AccessTokenService(get_settings())

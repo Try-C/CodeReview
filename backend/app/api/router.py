@@ -5,6 +5,7 @@ from fastapi import APIRouter
 from app.api.auth import router as auth_router
 from app.api.health import router as health_router
 from app.api.projects import router as projects_router
+from app.api.reports import router as reports_router
 from app.api.reviews import router as reviews_router
 from app.api.uploads import router as uploads_router
 
@@ -14,3 +15,4 @@ api_router.include_router(auth_router)
 api_router.include_router(uploads_router)
 api_router.include_router(projects_router)
 api_router.include_router(reviews_router)
+api_router.include_router(reports_router)
