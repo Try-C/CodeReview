@@ -1,6 +1,7 @@
 """Typed application configuration."""
 
 from functools import lru_cache
+from pathlib import Path
 from typing import Literal, Self
 
 from pydantic import Field, SecretStr, field_validator, model_validator
@@ -39,6 +40,13 @@ class Settings(BaseSettings):
     jwt_issuer: str = "codereview-agent"
     jwt_access_token_expire_minutes: int = Field(default=30, ge=5, le=1440)
     health_dependency_timeout_seconds: float = Field(default=2.0, gt=0, le=30)
+    upload_root: Path = Path("var/uploads")
+    max_project_size_mb: int = Field(default=300, ge=1, le=10_000)
+    max_single_file_mb: int = Field(default=3, ge=1, le=100)
+    max_file_count: int = Field(default=5000, ge=1, le=100_000)
+    max_total_lines: int = Field(default=150_000, ge=1, le=10_000_000)
+    max_relative_path_length: int = Field(default=512, ge=64, le=4096)
+    enabled_languages: tuple[Literal["java", "python"], ...] = ("java", "python")
 
     @field_validator("api_v1_prefix")
     @classmethod
