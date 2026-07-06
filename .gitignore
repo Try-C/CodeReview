@@ -28,7 +28,9 @@ coverage/
 
 # Runtime data
 .local/
+.playwright-cli/
 logs/
+output/playwright/
 tmp/
 uploads/
 var/

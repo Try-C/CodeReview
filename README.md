@@ -16,6 +16,7 @@ LangGraph 工作流生成并校验证据充分的审查报告。
 - 仓库与协作规范。
 - FastAPI 应用工厂、类型化配置、结构化日志和统一错误响应。
 - `/api/v1/health/live` 与 `/api/v1/health/ready` 健康检查。
+- Vue3、TypeScript、Pinia、Element Plus 基础页面与后端状态展示。
 
 ## 核心技术决策
 
@@ -49,6 +50,19 @@ uvicorn app.main:app --reload
 - `GET http://127.0.0.1:8000/api/v1/health/live`
 - `GET http://127.0.0.1:8000/api/v1/health/ready`
 - `GET http://127.0.0.1:8000/docs`
+
+## 前端本地运行
+
+使用 Node.js 24 和 pnpm 11：
+
+```powershell
+cd frontend
+pnpm install
+pnpm dev
+```
+
+开发服务器默认访问 `http://127.0.0.1:5173`，并将 `/api` 请求代理到
+`http://127.0.0.1:8000`。
 
 ## 开发边界
 

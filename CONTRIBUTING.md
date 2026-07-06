@@ -55,6 +55,15 @@ python -m mypy app tests
 python -m pytest
 ```
 
+Frontend commands are run from `frontend/` with Node.js 24 and pnpm 11:
+
+```powershell
+pnpm install
+pnpm run typecheck
+pnpm test
+pnpm run build
+```
+
 Repository-only changes are checked from the repository root with:
 
 ```powershell
