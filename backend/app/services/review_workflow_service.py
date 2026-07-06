@@ -152,6 +152,7 @@ class ReviewWorkflowService:
                     "parse_strategy": "failed",
                     "parse_error": "PARSE_FAILED",
                 }
+                continue
             await self._mark_parse_result(
                 project_file.id,
                 "success",

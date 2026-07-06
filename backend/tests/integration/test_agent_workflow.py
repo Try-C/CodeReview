@@ -16,7 +16,9 @@ from sqlalchemy.pool import NullPool
 from app.core.config import Settings
 from app.core.database import Base
 from app.indexing import IndexingService
+from app.indexing.service import IndexBuildResult
 from app.languages import create_default_registry
+from app.languages.schemas import ParseResult
 from app.llm.usage import LLMCallResult, PricingSnapshot
 from app.models import NodeRun, Project, ProjectFile, ReviewIssue, ReviewReport, ReviewTask, User
 from app.retrieval import ContextAssembler, HybridRetriever
@@ -121,6 +123,19 @@ class WorkflowLLMProvider:
         )
 
 
+class ExplodingIndexingService(IndexingService):
+    async def index_file(
+        self,
+        *,
+        project_id: int,
+        file_id: int,
+        file_hash: str,
+        parse_result: ParseResult,
+    ) -> IndexBuildResult:
+        del project_id, file_id, file_hash, parse_result
+        raise RuntimeError("index store unavailable")
+
+
 async def test_workflow_persists_idempotent_trace_issue_and_report(tmp_path: Path) -> None:
     engine = create_async_engine(
         f"sqlite+aiosqlite:///{(tmp_path / 'workflow.sqlite3').as_posix()}",
@@ -167,6 +182,54 @@ async def test_workflow_persists_idempotent_trace_issue_and_report(tmp_path: Pat
         assert report is not None
         assert "Untrusted input reaches eval" in report.report_content
     assert await _count_rows(sessions, NodeRun) == first_node_count
+    await engine.dispose()
+
+
+async def test_parse_index_failure_marks_file_failed_and_continues(tmp_path: Path) -> None:
+    engine = create_async_engine(
+        f"sqlite+aiosqlite:///{(tmp_path / 'workflow-parse-failure.sqlite3').as_posix()}",
+        poolclass=NullPool,
+    )
+    async with engine.begin() as connection:
+        await connection.run_sync(Base.metadata.create_all)
+    sessions = async_sessionmaker(engine, expire_on_commit=False)
+    settings = Settings(_env_file=None, app_env="test", upload_root=tmp_path / "uploads")
+    storage = LocalProjectStorage(settings.upload_root)
+    storage_key = "b" * 32
+    project_root = settings.upload_root / storage_key
+    (project_root / "src").mkdir(parents=True)
+    source = "def ok():\n    return True\n"
+    (project_root / "src" / "example.py").write_text(source, encoding="utf-8")
+    task_id = await _create_task(sessions, storage_key, source)
+    embeddings = FakeEmbeddingProvider()
+    workflow = ReviewWorkflowService(
+        settings=settings,
+        sessions=sessions,
+        storage=storage,
+        languages=create_default_registry(settings),
+        indexing=ExplodingIndexingService(sessions, embeddings),
+        retriever=HybridRetriever(sessions, embeddings),
+        context_assembler=ContextAssembler(sessions),
+        llm_provider=WorkflowLLMProvider(),
+    )
+    _, project, files = await workflow._load_inputs(task_id)
+
+    summary = await workflow._parse_and_index(project.id, project_root, files)
+
+    assert summary == {
+        "src/example.py": {
+            "language": "python",
+            "line_count": 2,
+            "priority": "high",
+            "parse_strategy": "failed",
+            "parse_error": "PARSE_FAILED",
+        }
+    }
+    async with sessions() as session:
+        project_file = await session.scalar(select(ProjectFile))
+        assert project_file is not None
+        assert project_file.parse_status == "failed"
+        assert project_file.parse_error == "PARSE_FAILED"
     await engine.dispose()
 
 

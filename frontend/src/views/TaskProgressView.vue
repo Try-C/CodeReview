@@ -85,7 +85,7 @@ function connectSSE() {
     }
   })
 
-  eventSource.addEventListener('complete', () => {
+  eventSource.addEventListener('final', () => {
     closeSSE()
     void pollTask()
   })
@@ -109,6 +109,10 @@ async function pollTask() {
   try {
     task.value = await fetchReview(taskId)
     loadError.value = ''
+    if (completed.value || terminalFailure.value) {
+      closeSSE()
+      stopPolling()
+    }
   } catch (error) {
     loadError.value =
       error instanceof Error ? error.message : '无法获取任务进度'

@@ -69,15 +69,17 @@ const categories = computed(() => {
 async function loadData() {
   loading.value = true
   loadError.value = ''
+  report.value = null
+  issues.value = []
   try {
-    const [r, i, t] = await Promise.all([
-      fetchReport(taskId),
-      fetchIssues(taskId),
-      fetchReview(taskId).catch(() => null),
-    ])
+    const t = await fetchReview(taskId).catch(() => null)
+    task.value = t
+    if (t?.status === 'failed' || t?.status === 'cancelled') {
+      return
+    }
+    const [r, i] = await Promise.all([fetchReport(taskId), fetchIssues(taskId)])
     report.value = r
     issues.value = i
-    task.value = t
   } catch (e: unknown) {
     loadError.value = e instanceof Error ? e.message : '无法加载报告数据'
   } finally {
