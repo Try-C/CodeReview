@@ -25,6 +25,8 @@ def test_initial_migration_upgrades_and_downgrades(tmp_path: Path) -> None:
         "alembic_version",
         "project_files",
         "projects",
+        "review_tasks",
+        "task_events",
         "upload_sessions",
         "users",
     }
@@ -35,6 +37,17 @@ def test_initial_migration_upgrades_and_downgrades(tmp_path: Path) -> None:
         for foreign_key in inspector.get_foreign_keys("upload_sessions")
     }
     assert upload_foreign_keys == {"projects": "SET NULL", "users": "CASCADE"}
+    task_foreign_keys = {
+        foreign_key["referred_table"]: foreign_key["options"]["ondelete"]
+        for foreign_key in inspector.get_foreign_keys("review_tasks")
+    }
+    assert task_foreign_keys == {"projects": "CASCADE", "users": "CASCADE"}
+    assert inspector.get_foreign_keys("task_events")[0]["options"]["ondelete"] == "CASCADE"
+    assert {column["name"] for column in inspector.get_columns("task_events")} >= {
+        "id",
+        "task_id",
+        "metadata",
+    }
     assert {index["name"] for index in inspector.get_indexes("projects")} == {"ix_projects_user_id"}
     assert {constraint["name"] for constraint in inspector.get_check_constraints("projects")} == {
         "ck_projects_total_files_nonnegative",

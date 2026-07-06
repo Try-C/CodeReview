@@ -6,8 +6,10 @@ from typing import Annotated, cast
 from fastapi import Depends, Request
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.core.redis import TaskEventBus
 from app.core.runtime import RuntimeContext
 from app.storage.local import LocalProjectStorage
+from app.tasks.celery_app import TaskDispatcher
 
 
 async def get_session(request: Request) -> AsyncIterator[AsyncSession]:
@@ -29,3 +31,21 @@ def get_project_storage(request: Request) -> LocalProjectStorage:
 
 
 ProjectStorageDependency = Annotated[LocalProjectStorage, Depends(get_project_storage)]
+
+
+def get_event_bus(request: Request) -> TaskEventBus | None:
+    """Return the optional Redis notification bus; database replay works without it."""
+    runtime = cast(RuntimeContext, request.app.state.runtime)
+    return runtime.event_bus
+
+
+def get_task_dispatcher(request: Request) -> TaskDispatcher:
+    """Return the runtime-owned non-blocking task dispatcher."""
+    runtime = cast(RuntimeContext, request.app.state.runtime)
+    if runtime.task_dispatcher is None:
+        raise RuntimeError("Task dispatcher is not configured")
+    return runtime.task_dispatcher
+
+
+EventBusDependency = Annotated[TaskEventBus | None, Depends(get_event_bus)]
+TaskDispatcherDependency = Annotated[TaskDispatcher, Depends(get_task_dispatcher)]

@@ -7,8 +7,9 @@ from typing import Literal, Protocol
 
 from app.core.config import Settings
 from app.core.database import DatabaseDependency, SessionFactory
-from app.core.redis import RedisHealthDependency
+from app.core.redis import RedisDependency, TaskEventBus
 from app.storage.local import LocalProjectStorage
+from app.tasks.celery_app import CeleryTaskDispatcher, TaskDispatcher, create_celery_app
 
 logger = logging.getLogger(__name__)
 HealthCheckStatus = Literal["ok", "error"]
@@ -33,6 +34,8 @@ class RuntimeContext:
     dependencies: tuple[HealthDependency, ...]
     session_factory: SessionFactory | None = None
     project_storage: LocalProjectStorage | None = None
+    event_bus: TaskEventBus | None = None
+    task_dispatcher: TaskDispatcher | None = None
 
     async def health_checks(
         self,
@@ -85,11 +88,17 @@ class RuntimeContext:
 def build_runtime(settings: Settings) -> RuntimeContext:
     """Build production dependency adapters from validated settings."""
     database = DatabaseDependency(settings.database_url.get_secret_value())
+    redis = RedisDependency(
+        settings.redis_url.get_secret_value(),
+        stream_max_length=settings.task_event_stream_max_length,
+    )
     return RuntimeContext(
         dependencies=(
             database,
-            RedisHealthDependency(settings.redis_url.get_secret_value()),
+            redis,
         ),
         session_factory=database.session_factory,
         project_storage=LocalProjectStorage(settings.upload_root),
+        event_bus=redis,
+        task_dispatcher=CeleryTaskDispatcher(create_celery_app(settings)),
     )

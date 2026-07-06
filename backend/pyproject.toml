@@ -11,12 +11,13 @@ requires-python = ">=3.12,<3.13"
 dependencies = [
   "alembic>=1.18,<1.19",
   "asyncpg>=0.31,<0.32",
+  "celery[redis]>=5.6,<5.7",
   "fastapi>=0.139,<0.140",
   "pwdlib[argon2]>=0.3,<0.4",
   "pyjwt>=2.11,<3",
   "pydantic-settings>=2.14,<2.15",
   "python-multipart>=0.0.22,<0.1",
-  "redis>=8.0,<8.1",
+  "redis>=6.4,<6.5",
   "sqlalchemy>=2.0.51,<2.1",
   "uvicorn[standard]>=0.50,<0.51",
 ]
@@ -78,4 +79,8 @@ disallow_untyped_decorators = false
 
 [[tool.mypy.overrides]]
 module = "alembic.*"
+ignore_missing_imports = true
+
+[[tool.mypy.overrides]]
+module = "celery.*"
 ignore_missing_imports = true
