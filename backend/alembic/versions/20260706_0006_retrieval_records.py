@@ -47,6 +47,14 @@ def upgrade() -> None:
         sa.ForeignKeyConstraint(["project_id"], ["projects.id"], ondelete="CASCADE"),
         sa.ForeignKeyConstraint(["task_id"], ["review_tasks.id"], ondelete="CASCADE"),
         sa.PrimaryKeyConstraint("id"),
+        sa.UniqueConstraint(
+            "task_id",
+            "review_item_key",
+            "query_hash",
+            "chunk_id",
+            "retrieval_round",
+            name="uq_retrieval_records_identity",
+        ),
     )
     op.create_index(
         "ix_retrieval_records_task_id",

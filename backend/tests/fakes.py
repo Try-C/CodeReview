@@ -80,5 +80,7 @@ class FakeEmbeddingProvider:
         self.calls.append((tuple(texts), text_type))
         if self.error is not None:
             raise self.error
-        return [[float(index + 1) + hash(text) % 100 / 1000] * self.dimension
-                for index, text in enumerate(texts)]
+        return [
+            [float(index + 1) + hash(text) % 100 / 1000] * self.dimension
+            for index, text in enumerate(texts)
+        ]

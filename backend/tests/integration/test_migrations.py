@@ -94,6 +94,18 @@ def test_initial_migration_upgrades_and_downgrades(tmp_path: Path) -> None:
         "ix_retrieval_records_task_id",
         "ix_retrieval_records_query_hash",
     }
+    retrieval_record_unique = inspector.get_unique_constraints("retrieval_records")
+    assert any(
+        set(constraint["column_names"])
+        == {
+            "task_id",
+            "review_item_key",
+            "query_hash",
+            "chunk_id",
+            "retrieval_round",
+        }
+        for constraint in retrieval_record_unique
+    ), "retrieval_records must have an idempotency unique constraint"
 
     command.downgrade(config, "base")
 
