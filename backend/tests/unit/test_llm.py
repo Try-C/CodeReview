@@ -3,8 +3,10 @@
 from __future__ import annotations
 
 import tempfile
+from collections.abc import Generator
 from decimal import Decimal
 from pathlib import Path
+from typing import Any
 
 import pytest
 from pydantic import BaseModel
@@ -171,7 +173,11 @@ class TestStructuredLLM:
         call_index = [0]
 
         class MultiResponseFake(FakeLLMClient):
-            async def chat(self, messages, **kwargs):
+            async def chat(
+                self,
+                messages: list[dict[str, str]],
+                **kwargs: Any,
+            ) -> Any:
                 idx = call_index[0]
                 call_index[0] += 1
                 return await FakeLLMClient(
@@ -216,7 +222,7 @@ class TestEvidenceService:
         return EvidenceService()
 
     @pytest.fixture
-    def tmp_project(self) -> str:
+    def tmp_project(self) -> Generator[str, None, None]:
         with tempfile.TemporaryDirectory() as td:
             src = Path(td) / "src"
             src.mkdir()
@@ -229,7 +235,7 @@ class TestEvidenceService:
             yield td
 
     @pytest.mark.asyncio
-    async def test_all_checks_pass(self, service, tmp_project) -> None:
+    async def test_all_checks_pass(self, service: EvidenceService, tmp_project: str) -> None:
         issue = {
             "relative_path": "src/Test.java",
             "start_line": 3,
@@ -246,7 +252,7 @@ class TestEvidenceService:
         assert result["evidence_status"] == "passed"
 
     @pytest.mark.asyncio
-    async def test_bad_path_fails(self, service, tmp_project) -> None:
+    async def test_bad_path_fails(self, service: EvidenceService, tmp_project: str) -> None:
         issue = {
             "relative_path": "../outside.txt",
             "start_line": 1,
@@ -264,7 +270,9 @@ class TestEvidenceService:
         assert result["evidence_checks"]["path"] is False
 
     @pytest.mark.asyncio
-    async def test_line_out_of_range_fails(self, service, tmp_project) -> None:
+    async def test_line_out_of_range_fails(
+        self, service: EvidenceService, tmp_project: str
+    ) -> None:
         issue = {
             "relative_path": "src/Test.java",
             "start_line": 99,
@@ -282,7 +290,7 @@ class TestEvidenceService:
         assert result["evidence_checks"]["lines"] is False
 
     @pytest.mark.asyncio
-    async def test_empty_evidence_fails(self, service, tmp_project) -> None:
+    async def test_empty_evidence_fails(self, service: EvidenceService, tmp_project: str) -> None:
         issue = {
             "relative_path": "src/Test.java",
             "start_line": 3,
@@ -300,7 +308,7 @@ class TestEvidenceService:
         assert result["evidence_checks"]["evidence"] is False
 
     @pytest.mark.asyncio
-    async def test_empty_chunks_fails(self, service, tmp_project) -> None:
+    async def test_empty_chunks_fails(self, service: EvidenceService, tmp_project: str) -> None:
         issue = {
             "relative_path": "src/Test.java",
             "start_line": 3,
@@ -318,7 +326,7 @@ class TestEvidenceService:
         assert result["evidence_checks"]["chunks"] is False
 
     @pytest.mark.asyncio
-    async def test_fingerprint_is_stable(self, service, tmp_project) -> None:
+    async def test_fingerprint_is_stable(self, service: EvidenceService, tmp_project: str) -> None:
         issue = {
             "relative_path": "src/Test.java",
             "start_line": 3,
@@ -340,7 +348,7 @@ class TestEvidenceService:
         assert r1["fingerprint"] == r2["fingerprint"]
 
     @pytest.mark.asyncio
-    async def test_nonexistent_file_fails(self, service, tmp_project) -> None:
+    async def test_nonexistent_file_fails(self, service: EvidenceService, tmp_project: str) -> None:
         issue = {
             "relative_path": "src/DoesNotExist.java",
             "start_line": 1,
