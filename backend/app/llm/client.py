@@ -31,6 +31,7 @@ class LLMProvider(Protocol):
         *,
         temperature: float | None = None,
         max_tokens: int | None = None,
+        json_mode: bool = False,
     ) -> LLMCallResult:
         """Return generated content together with immutable usage metadata."""
 
@@ -44,8 +45,9 @@ class UnavailableLLMProvider:
         *,
         temperature: float | None = None,
         max_tokens: int | None = None,
+        json_mode: bool = False,
     ) -> LLMCallResult:
-        del messages, temperature, max_tokens
+        del messages, temperature, max_tokens, json_mode
         raise LLMClientError("LLM_PROVIDER_UNAVAILABLE")
 
 
@@ -94,14 +96,22 @@ class LLMClient:
         *,
         temperature: float | None = None,
         max_tokens: int | None = None,
+        json_mode: bool = False,
     ) -> LLMCallResult:
-        """Send a chat-completion request and return the LLMCallResult."""
+        """Send a chat-completion request and return the LLMCallResult.
+
+        Set json_mode=True to request JSON output from the model (adds
+        response_format={'type': 'json_object'} to the payload).  DeepSeek's
+        API is OpenAI-compatible and respects this parameter.
+        """
         payload: dict[str, Any] = {
             "model": self._model,
             "messages": messages,
             "temperature": temperature if temperature is not None else self._temperature,
             "max_tokens": max_tokens if max_tokens is not None else self._max_tokens,
         }
+        if json_mode:
+            payload["response_format"] = {"type": "json_object"}
 
         started = time.monotonic()
         async with httpx.AsyncClient(timeout=self._timeout) as client:

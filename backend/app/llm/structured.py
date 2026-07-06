@@ -46,6 +46,7 @@ class StructuredLLM:
             messages,
             temperature=temperature,
             max_tokens=max_tokens,
+            json_mode=True,
         )
 
         parsed = self._parse_with_repair(result.content, response_model)
@@ -53,7 +54,7 @@ class StructuredLLM:
             return parsed, result
 
         # One repair retry.
-        logger.warning("structured_output_repair_attempt")
+        logger.warning("structured_output_repair_attempt raw=%s", result.content[:500])
         repair_messages = [
             *messages,
             {"role": "assistant", "content": result.content},
@@ -67,7 +68,12 @@ class StructuredLLM:
                 ),
             },
         ]
-        result2 = await self._client.chat(repair_messages)
+        result2 = await self._client.chat(
+            repair_messages,
+            temperature=temperature,
+            max_tokens=max_tokens,
+            json_mode=True,
+        )
         parsed = self._parse_with_repair(result2.content, response_model)
         if parsed is not None:
             return parsed, combine_call_results(result, result2)
