@@ -28,7 +28,7 @@ class BenchmarkMetrics:
         total_predictions: Number of predictions submitted.
         recall_at_k: Sorted by predicted relevance, top-K coverage.
         recall_at_k_values: K values used (default [5, 10, 20]).
-        matches: Number of matched prediction–ground-truth pairs.
+        matches: Number of matched prediction-ground-truth pairs.
     """
 
     precision: float
@@ -74,10 +74,7 @@ def calculate_precision_recall_f1(
     """
     precision = tp / (tp + fp) if (tp + fp) > 0 else 0.0
     recall = tp / (tp + fn) if (tp + fn) > 0 else 0.0
-    if precision + recall > 0:
-        f1 = 2 * precision * recall / (precision + recall)
-    else:
-        f1 = 0.0
+    f1 = 2 * precision * recall / (precision + recall) if precision + recall > 0 else 0.0
     return precision, recall, f1
 
 
