@@ -8,7 +8,7 @@ LangGraph 工作流生成并校验证据充分的审查报告。
 
 ## 当前状态
 
-**Module 01：工程脚手架** 已完成，下一阶段将进入认证与项目资源建模。开发采用
+**Module 02：认证与项目** 已完成，下一阶段将进入安全上传。开发采用
 单子任务验收制，不提前创建未使用的模块或声称尚未测得的效果。
 
 已完成：
@@ -19,6 +19,9 @@ LangGraph 工作流生成并校验证据充分的审查报告。
 - PostgreSQL、Redis 异步客户端、生命周期管理与就绪探针。
 - Vue3、TypeScript、Pinia、Element Plus 基础页面与后端状态展示。
 - Ruff、MyPy、Pytest、ESLint、Prettier、Vitest 与 GitHub Actions。
+- User、Project、ProjectFile 持久化模型及 Alembic 初始迁移。
+- Argon2 密码哈希、短期 JWT 登录和当前用户认证。
+- 带资源所有权校验的项目列表、详情和删除接口。
 
 ## 核心技术决策
 
@@ -45,6 +48,7 @@ cd backend
 python -m venv .venv
 .\.venv\Scripts\Activate.ps1
 python -m pip install -e ".[dev]"
+python -m alembic upgrade head
 uvicorn app.main:app --reload
 ```
 
@@ -52,6 +56,9 @@ uvicorn app.main:app --reload
 
 - `GET http://127.0.0.1:8000/api/v1/health/live`
 - `GET http://127.0.0.1:8000/api/v1/health/ready`
+- `POST http://127.0.0.1:8000/api/v1/auth/register`
+- `POST http://127.0.0.1:8000/api/v1/auth/login`
+- `GET http://127.0.0.1:8000/api/v1/projects`
 - `GET http://127.0.0.1:8000/docs`
 
 `live` 只检查 API 进程；`ready` 会检查 PostgreSQL 和 Redis，任一依赖不可用时

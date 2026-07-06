@@ -1,11 +1,24 @@
-"""PostgreSQL connectivity used by application health checks."""
+"""SQLAlchemy engine, sessions, and declarative model base."""
 
 from sqlalchemy import text
-from sqlalchemy.ext.asyncio import AsyncEngine, create_async_engine
+from sqlalchemy.ext.asyncio import (
+    AsyncEngine,
+    AsyncSession,
+    async_sessionmaker,
+    create_async_engine,
+)
+from sqlalchemy.orm import DeclarativeBase
 
 
-class DatabaseHealthDependency:
-    """Own the async SQLAlchemy engine and verify PostgreSQL connectivity."""
+class Base(DeclarativeBase):
+    """Base class shared by every persisted domain model."""
+
+
+SessionFactory = async_sessionmaker[AsyncSession]
+
+
+class DatabaseDependency:
+    """Own the async SQLAlchemy engine and request-scoped session factory."""
 
     name = "database"
 
@@ -13,6 +26,10 @@ class DatabaseHealthDependency:
         self._engine: AsyncEngine = create_async_engine(
             database_url,
             pool_pre_ping=True,
+        )
+        self.session_factory: SessionFactory = async_sessionmaker(
+            self._engine,
+            expire_on_commit=False,
         )
 
     async def check(self) -> None:

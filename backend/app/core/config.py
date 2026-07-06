@@ -34,6 +34,10 @@ class Settings(BaseSettings):
         "postgresql+asyncpg://codereview:codereview@localhost:5432/codereview"
     )
     redis_url: SecretStr = SecretStr("redis://localhost:6379/0")
+    jwt_secret_key: SecretStr = SecretStr("development-only-change-me")
+    jwt_algorithm: Literal["HS256"] = "HS256"
+    jwt_issuer: str = "codereview-agent"
+    jwt_access_token_expire_minutes: int = Field(default=30, ge=5, le=1440)
     health_dependency_timeout_seconds: float = Field(default=2.0, gt=0, le=30)
 
     @field_validator("api_v1_prefix")
@@ -61,6 +65,13 @@ class Settings(BaseSettings):
             raise ValueError("debug must be disabled in production")
         if self.app_env == "production" and "*" in self.allowed_origins:
             raise ValueError("wildcard CORS origins are not allowed in production")
+        if (
+            self.app_env == "production"
+            and self.jwt_secret_key.get_secret_value() == "development-only-change-me"
+        ):
+            raise ValueError("jwt_secret_key must be changed in production")
+        if self.app_env == "production" and len(self.jwt_secret_key.get_secret_value()) < 32:
+            raise ValueError("jwt_secret_key must contain at least 32 characters in production")
         return self
 
 
