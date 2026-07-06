@@ -2044,7 +2044,8 @@ SSE 断线 → 恢复
 
 ## Module 01：脚手架
 
-- FastAPI、Vue3、PostgreSQL、Redis、Docker。
+- FastAPI、Vue3、PostgreSQL、Redis。
+- 本地服务直接运行，不提供 Docker 一键编排。
 - 配置、日志、异常、健康检查。
 - CI 基础检查。
 

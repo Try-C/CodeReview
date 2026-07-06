@@ -16,7 +16,11 @@ describe('HomeView', () => {
         status: 'ready',
         service: 'CodeReview Agent',
         version: '0.1.0',
-        checks: { configuration: 'ok' },
+        checks: {
+          configuration: 'ok',
+          database: 'ok',
+          redis: 'ok',
+        },
       },
       requestId: 'view-request',
     })
@@ -31,6 +35,8 @@ describe('HomeView', () => {
     expect(fetchReadiness).toHaveBeenCalledOnce()
     expect(wrapper.text()).toContain('API 已就绪')
     expect(wrapper.text()).toContain('CodeReview Agent')
+    expect(wrapper.text()).toContain('PostgreSQL')
+    expect(wrapper.text()).toContain('Redis')
     expect(wrapper.text()).toContain('Request ID: view-request')
   })
 })

@@ -12,13 +12,18 @@ from app.core.config import Settings, get_settings
 from app.core.exceptions import register_exception_handlers
 from app.core.logging import configure_logging
 from app.core.middleware import RequestContextMiddleware
+from app.core.runtime import RuntimeContext, build_runtime
 
 logger = logging.getLogger(__name__)
 
 
-def create_app(settings: Settings | None = None) -> FastAPI:
+def create_app(
+    settings: Settings | None = None,
+    runtime: RuntimeContext | None = None,
+) -> FastAPI:
     """Build an application with explicit, testable runtime configuration."""
     runtime_settings = settings or get_settings()
+    runtime_context = runtime or build_runtime(runtime_settings)
     configure_logging(
         runtime_settings.log_level,
         json_output=runtime_settings.log_json,
@@ -33,14 +38,17 @@ def create_app(settings: Settings | None = None) -> FastAPI:
                 "app_version": runtime_settings.app_version,
             },
         )
-        yield
-        logger.info(
-            "application_stopped",
-            extra={
-                "app_env": runtime_settings.app_env,
-                "app_version": runtime_settings.app_version,
-            },
-        )
+        try:
+            yield
+        finally:
+            await runtime_context.close()
+            logger.info(
+                "application_stopped",
+                extra={
+                    "app_env": runtime_settings.app_env,
+                    "app_version": runtime_settings.app_version,
+                },
+            )
 
     application = FastAPI(
         title=runtime_settings.app_name,
@@ -50,6 +58,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         lifespan=lifespan,
     )
     application.state.settings = runtime_settings
+    application.state.runtime = runtime_context
     application.add_middleware(
         CORSMiddleware,
         allow_origins=runtime_settings.allowed_origins,

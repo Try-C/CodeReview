@@ -37,6 +37,12 @@ const checkedAt = computed(() => {
   })
 })
 
+const checkLabels: Record<string, string> = {
+  configuration: '配置',
+  database: 'PostgreSQL',
+  redis: 'Redis',
+}
+
 onMounted(() => {
   void healthStore.refresh()
 })
@@ -89,17 +95,17 @@ onMounted(() => {
         <ElDescriptionsItem label="版本">
           {{ healthStore.readiness.version }}
         </ElDescriptionsItem>
-        <ElDescriptionsItem label="配置检查">
+        <ElDescriptionsItem
+          v-for="(checkStatus, checkName) in healthStore.readiness.checks"
+          :key="checkName"
+          :label="checkLabels[checkName] ?? checkName"
+        >
           <ElTag
-            :type="
-              healthStore.readiness.checks.configuration === 'ok'
-                ? 'success'
-                : 'danger'
-            "
+            :type="checkStatus === 'ok' ? 'success' : 'danger'"
             effect="plain"
             size="small"
           >
-            {{ healthStore.readiness.checks.configuration ?? 'unknown' }}
+            {{ checkStatus }}
           </ElTag>
         </ElDescriptionsItem>
       </ElDescriptions>

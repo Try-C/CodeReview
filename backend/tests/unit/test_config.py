@@ -45,3 +45,25 @@ def test_production_wildcard_cors_is_rejected() -> None:
 def test_invalid_request_id_header_is_rejected() -> None:
     with pytest.raises(ValidationError, match="request_id_header"):
         Settings(_env_file=None, request_id_header="X Request ID")
+
+
+def test_dependency_urls_are_masked_in_settings_representation() -> None:
+    database_url = "postgresql+asyncpg://user:private-password@localhost/database"
+    redis_url = "redis://:private-password@localhost:6379/0"
+
+    settings = Settings(
+        _env_file=None,
+        database_url=database_url,
+        redis_url=redis_url,
+    )
+
+    assert database_url not in repr(settings)
+    assert redis_url not in repr(settings)
+    assert settings.database_url.get_secret_value() == database_url
+    assert settings.redis_url.get_secret_value() == redis_url
+
+
+@pytest.mark.parametrize("timeout", [0, -1, 31])
+def test_invalid_health_dependency_timeout_is_rejected(timeout: float) -> None:
+    with pytest.raises(ValidationError):
+        Settings(_env_file=None, health_dependency_timeout_seconds=timeout)

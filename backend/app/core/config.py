@@ -3,7 +3,7 @@
 from functools import lru_cache
 from typing import Literal, Self
 
-from pydantic import field_validator, model_validator
+from pydantic import Field, SecretStr, field_validator, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 AppEnvironment = Literal["dev", "test", "production"]
@@ -30,6 +30,11 @@ class Settings(BaseSettings):
     log_level: LogLevel = "INFO"
     log_json: bool = True
     request_id_header: str = "X-Request-ID"
+    database_url: SecretStr = SecretStr(
+        "postgresql+asyncpg://codereview:codereview@localhost:5432/codereview"
+    )
+    redis_url: SecretStr = SecretStr("redis://localhost:6379/0")
+    health_dependency_timeout_seconds: float = Field(default=2.0, gt=0, le=30)
 
     @field_validator("api_v1_prefix")
     @classmethod

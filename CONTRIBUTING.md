@@ -58,7 +58,7 @@ python -m pytest
 Frontend commands are run from `frontend/` with Node.js 24 and pnpm 11:
 
 ```powershell
-pnpm install
+pnpm install --frozen-lockfile
 pnpm run lint
 pnpm run format:check
 pnpm run typecheck
@@ -69,6 +69,10 @@ pnpm run build
 Use `pnpm run check` to execute the complete frontend verification sequence.
 GitHub Actions runs the same backend and frontend checks on module branches,
 pull requests, and `main`.
+
+PostgreSQL and Redis are local prerequisites. Configure them through
+`backend/.env`; this repository intentionally does not provide Docker-based
+one-command orchestration.
 
 Repository-only changes are checked from the repository root with:
 

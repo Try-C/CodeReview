@@ -13,6 +13,7 @@ _EXTRA_FIELDS = (
     "path",
     "status_code",
     "duration_ms",
+    "dependency",
     "app_env",
     "app_version",
 )

@@ -8,15 +8,17 @@ LangGraph 工作流生成并校验证据充分的审查报告。
 
 ## 当前状态
 
-当前处于 **Module 01：工程脚手架**。开发采用单子任务验收制，不提前创建
-未使用的模块或声称尚未测得的效果。
+**Module 01：工程脚手架** 已完成，下一阶段将进入认证与项目资源建模。开发采用
+单子任务验收制，不提前创建未使用的模块或声称尚未测得的效果。
 
 已完成：
 
 - 仓库与协作规范。
 - FastAPI 应用工厂、类型化配置、结构化日志和统一错误响应。
 - `/api/v1/health/live` 与 `/api/v1/health/ready` 健康检查。
+- PostgreSQL、Redis 异步客户端、生命周期管理与就绪探针。
 - Vue3、TypeScript、Pinia、Element Plus 基础页面与后端状态展示。
+- Ruff、MyPy、Pytest、ESLint、Prettier、Vitest 与 GitHub Actions。
 
 ## 核心技术决策
 
@@ -35,7 +37,8 @@ LangGraph 工作流生成并校验证据充分的审查报告。
 
 ## 后端本地运行
 
-使用 Python 3.12：
+使用 Python 3.12，并提前启动 PostgreSQL 与 Redis。复制
+`backend/.env.example` 为 `backend/.env`，按本机环境修改连接地址：
 
 ```powershell
 cd backend
@@ -51,18 +54,32 @@ uvicorn app.main:app --reload
 - `GET http://127.0.0.1:8000/api/v1/health/ready`
 - `GET http://127.0.0.1:8000/docs`
 
+`live` 只检查 API 进程；`ready` 会检查 PostgreSQL 和 Redis，任一依赖不可用时
+返回 `503 SERVICE_NOT_READY`。项目不提供 Docker 一键编排。
+
 ## 前端本地运行
 
 使用 Node.js 24 和 pnpm 11：
 
 ```powershell
 cd frontend
-pnpm install
+pnpm install --frozen-lockfile
 pnpm dev
 ```
 
 开发服务器默认访问 `http://127.0.0.1:5173`，并将 `/api` 请求代理到
 `http://127.0.0.1:8000`。
+
+## 完整检查
+
+后端检查命令见 [CONTRIBUTING.md](CONTRIBUTING.md)。前端可以运行：
+
+```powershell
+cd frontend
+pnpm run check
+```
+
+同样的检查会在功能分支、Pull Request 和 `main` 上由 GitHub Actions 执行。
 
 ## 开发边界
 
