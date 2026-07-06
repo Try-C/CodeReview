@@ -81,3 +81,9 @@ def test_dependency_urls_are_masked_in_settings_representation() -> None:
 def test_invalid_health_dependency_timeout_is_rejected(timeout: float) -> None:
     with pytest.raises(ValidationError):
         Settings(_env_file=None, health_dependency_timeout_seconds=timeout)
+
+
+@pytest.mark.parametrize("heartbeat", [0, 0.5, 31])
+def test_invalid_sse_heartbeat_is_rejected(heartbeat: float) -> None:
+    with pytest.raises(ValidationError):
+        Settings(_env_file=None, sse_heartbeat_seconds=heartbeat)

@@ -35,6 +35,10 @@ class Settings(BaseSettings):
         "postgresql+asyncpg://codereview:codereview@localhost:5432/codereview"
     )
     redis_url: SecretStr = SecretStr("redis://localhost:6379/0")
+    task_event_retention_days: int = Field(default=7, ge=1, le=90)
+    task_event_stream_max_length: int = Field(default=10_000, ge=100, le=1_000_000)
+    sse_heartbeat_seconds: float = Field(default=15.0, ge=1.0, le=30.0)
+    sse_event_batch_size: int = Field(default=100, ge=1, le=1000)
     jwt_secret_key: SecretStr = SecretStr("development-only-change-me")
     jwt_algorithm: Literal["HS256"] = "HS256"
     jwt_issuer: str = "codereview-agent"
