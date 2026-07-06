@@ -8,6 +8,7 @@ from typing import Literal, Protocol
 from app.core.config import Settings
 from app.core.database import DatabaseDependency, SessionFactory
 from app.core.redis import RedisHealthDependency
+from app.storage.local import LocalProjectStorage
 
 logger = logging.getLogger(__name__)
 HealthCheckStatus = Literal["ok", "error"]
@@ -31,6 +32,7 @@ class RuntimeContext:
 
     dependencies: tuple[HealthDependency, ...]
     session_factory: SessionFactory | None = None
+    project_storage: LocalProjectStorage | None = None
 
     async def health_checks(
         self,
@@ -89,4 +91,5 @@ def build_runtime(settings: Settings) -> RuntimeContext:
             RedisHealthDependency(settings.redis_url.get_secret_value()),
         ),
         session_factory=database.session_factory,
+        project_storage=LocalProjectStorage(settings.upload_root),
     )

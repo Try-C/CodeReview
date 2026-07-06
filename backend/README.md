@@ -23,6 +23,10 @@ The current public endpoints are:
 - `POST /api/v1/auth/register`
 - `POST /api/v1/auth/login`
 - `GET /api/v1/auth/me`
+- `POST /api/v1/uploads/init`
+- `POST /api/v1/uploads/{upload_id}/files`
+- `POST /api/v1/uploads/{upload_id}/complete`
+- `GET /api/v1/uploads/{upload_id}`
 - `GET /api/v1/projects`
 - `GET /api/v1/projects/{project_id}`
 - `DELETE /api/v1/projects/{project_id}`
@@ -31,4 +35,7 @@ The current public endpoints are:
 The liveness endpoint does not call external services. Readiness checks both
 PostgreSQL and Redis and returns `503 SERVICE_NOT_READY` when either is
 unavailable. Authenticated project endpoints always scope access by the current
-user. Docker-based local orchestration is intentionally not included.
+user. Uploads use a server-validated manifest, stream Java and Python files into
+an isolated `UPLOAD_ROOT`, record skipped and failed coverage, and only create a
+project after all accepted manifest entries have outcomes. Docker-based local
+orchestration is intentionally not included.

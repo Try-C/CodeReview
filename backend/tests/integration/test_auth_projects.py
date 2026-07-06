@@ -1,6 +1,7 @@
 """Integration tests for authentication and owner-scoped project APIs."""
 
 import asyncio
+import hashlib
 from collections.abc import Iterator
 from dataclasses import dataclass
 from pathlib import Path
@@ -22,6 +23,7 @@ from app.core.database import Base
 from app.core.runtime import RuntimeContext
 from app.main import create_app
 from app.models import Project, ProjectFile, User
+from app.storage.local import LocalProjectStorage
 from tests.fakes import FakeHealthDependency
 
 
@@ -55,7 +57,10 @@ def database_harness(tmp_path: Path) -> Iterator[DatabaseHarness]:
 
 
 @pytest.fixture
-def module_client(database_harness: DatabaseHarness) -> Iterator[TestClient]:
+def module_client(
+    database_harness: DatabaseHarness,
+    tmp_path: Path,
+) -> Iterator[TestClient]:
     settings = Settings(
         _env_file=None,
         app_env="test",
@@ -68,6 +73,7 @@ def module_client(database_harness: DatabaseHarness) -> Iterator[TestClient]:
             FakeHealthDependency(name="redis"),
         ),
         session_factory=database_harness.sessions,
+        project_storage=LocalProjectStorage(tmp_path / "uploads"),
     )
     with TestClient(create_app(settings, runtime)) as client:
         yield client
@@ -131,7 +137,7 @@ async def _create_project(
         project = Project(
             user_id=user_id,
             project_name=name,
-            storage_key=f"storage-{user_id}-{name}",
+            storage_key=hashlib.sha256(f"{user_id}:{name}".encode()).hexdigest()[:32],
             main_language="python",
             language_stats={"python": 1},
             total_files=1,
@@ -208,7 +214,9 @@ def test_missing_and_tampered_bearer_tokens_are_rejected(
     token = _login(module_client, "alice")
 
     missing = module_client.get("/api/v1/auth/me")
-    tampered_token = f"{token[:-1]}{'a' if token[-1] != 'a' else 'b'}"
+    header, payload, signature = token.split(".")
+    tampered_signature = f"{'a' if signature[0] != 'a' else 'b'}{signature[1:]}"
+    tampered_token = ".".join((header, payload, tampered_signature))
     tampered = module_client.get(
         "/api/v1/auth/me",
         headers=_authorization(tampered_token),

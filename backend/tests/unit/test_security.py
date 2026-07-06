@@ -30,7 +30,9 @@ def test_access_token_round_trip_and_tamper_rejection() -> None:
 
     assert tokens.subject(token) == 42
 
-    tampered = f"{token[:-1]}{'a' if token[-1] != 'a' else 'b'}"
+    header, payload, signature = token.split(".")
+    tampered_signature = f"{'a' if signature[0] != 'a' else 'b'}{signature[1:]}"
+    tampered = ".".join((header, payload, tampered_signature))
     with pytest.raises(AppError) as error:
         tokens.subject(tampered)
 

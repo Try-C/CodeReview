@@ -1,4 +1,4 @@
-"""Migration acceptance tests for the Module 02 database schema."""
+"""Migration acceptance tests for the current database schema."""
 
 from pathlib import Path
 
@@ -25,10 +25,16 @@ def test_initial_migration_upgrades_and_downgrades(tmp_path: Path) -> None:
         "alembic_version",
         "project_files",
         "projects",
+        "upload_sessions",
         "users",
     }
     assert inspector.get_foreign_keys("projects")[0]["options"]["ondelete"] == "CASCADE"
     assert inspector.get_foreign_keys("project_files")[0]["options"]["ondelete"] == "CASCADE"
+    upload_foreign_keys = {
+        foreign_key["referred_table"]: foreign_key["options"]["ondelete"]
+        for foreign_key in inspector.get_foreign_keys("upload_sessions")
+    }
+    assert upload_foreign_keys == {"projects": "SET NULL", "users": "CASCADE"}
     assert {index["name"] for index in inspector.get_indexes("projects")} == {"ix_projects_user_id"}
     assert {constraint["name"] for constraint in inspector.get_check_constraints("projects")} == {
         "ck_projects_total_files_nonnegative",

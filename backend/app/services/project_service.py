@@ -6,13 +6,19 @@ from sqlalchemy.orm import selectinload
 
 from app.core.exceptions import AppError
 from app.models.project import Project
+from app.storage.local import LocalProjectStorage
 
 
 class ProjectService:
     """Access projects only through explicit owner-scoped predicates."""
 
-    def __init__(self, session: AsyncSession) -> None:
+    def __init__(
+        self,
+        session: AsyncSession,
+        storage: LocalProjectStorage | None = None,
+    ) -> None:
         self._session = session
+        self._storage = storage
 
     async def list_for_user(self, user_id: int) -> list[Project]:
         projects = await self._session.scalars(
@@ -39,5 +45,8 @@ class ProjectService:
 
     async def delete_for_user(self, project_id: int, user_id: int) -> None:
         project = await self.get_for_user(project_id, user_id)
+        if self._storage is None:
+            raise RuntimeError("Project storage is not configured")
+        self._storage.delete_project(project.storage_key)
         await self._session.delete(project)
         await self._session.commit()

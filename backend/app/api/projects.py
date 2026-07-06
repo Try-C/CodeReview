@@ -6,7 +6,7 @@ from fastapi import APIRouter, Depends, Response, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.auth import CurrentUser
-from app.core.dependencies import get_session
+from app.core.dependencies import ProjectStorageDependency, get_session
 from app.models.project import Project
 from app.schemas.common import ErrorResponse
 from app.schemas.project import ProjectDetailResponse, ProjectResponse
@@ -58,7 +58,8 @@ async def delete_project(
     project_id: int,
     current_user: CurrentUser,
     session: SessionDependency,
+    storage: ProjectStorageDependency,
 ) -> Response:
     """Delete an owned project and its database-registered file metadata."""
-    await ProjectService(session).delete_for_user(project_id, current_user.id)
+    await ProjectService(session, storage).delete_for_user(project_id, current_user.id)
     return Response(status_code=status.HTTP_204_NO_CONTENT)
