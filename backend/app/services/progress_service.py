@@ -163,7 +163,9 @@ class ProgressService:
             for project_file in project_files:
                 result = results.get(project_file.relative_path)
                 if result is None:
-                    raise RuntimeError("Scanner omitted a registered project file")
+                    project_file.scan_status = "failed"
+                    project_file.scan_reason = "SCANNER_OMITTED"
+                    continue
                 project_file.scan_status = result.status
                 project_file.scan_priority = result.priority
                 project_file.scan_reason = result.reason

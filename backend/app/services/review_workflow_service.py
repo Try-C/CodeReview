@@ -60,8 +60,18 @@ class ReviewWorkflowService:
 
     async def run(self, task_id: int) -> None:
         task, project, files = await self._load_inputs(task_id)
+        await self._set_stage(task_id, "parsing")
         project_root = self._storage.project_path(project.storage_key)
         file_summary = await self._parse_and_index(project.id, project_root, files)
+        parsed_count = sum(
+            1 for v in file_summary.values() if v.get("parse_strategy") != "failed"
+        )
+        if parsed_count == 0:
+            raise RuntimeError(
+                f"All {len(file_summary)} files failed to parse — "
+                "no source code available for review"
+            )
+        await self._set_stage(task_id, "planning")
         structured = StructuredLLM(self._llm_provider)
         graph = build_review_graph(
             planner_node=PlannerAgent(structured),
@@ -72,6 +82,7 @@ class ReviewWorkflowService:
             node_run_writer=self._node_runs.record,
             cancel_check=self._cancel_requested,
         )
+        await self._set_stage(task_id, "reviewing")
         result = await invoke_graph(
             graph,
             {
@@ -84,7 +95,16 @@ class ReviewWorkflowService:
                 "cancel_requested": task.cancel_requested,
             },
         )
+        await self._set_stage(task_id, "reporting")
         await self._persist_result(task, project, result)
+
+    async def _set_stage(self, task_id: int, stage: str) -> None:
+        """Update the task's current_stage so failures can be pinpointed."""
+        async with self._sessions() as session:
+            task = await session.get(ReviewTask, task_id)
+            if task is not None:
+                task.current_stage = stage
+                await session.commit()
 
     async def _cancel_requested(self, task_id: int) -> bool:
         async with self._sessions() as session:
