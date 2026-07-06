@@ -56,6 +56,16 @@ python -m mypy app tests
 python -m pytest
 ```
 
+Benchmark implementation checks are also run from `backend/`. Vulnerable
+dataset fixtures are intentionally excluded from linting and type checking:
+
+```powershell
+python -m ruff check ../benchmark --exclude ../benchmark/datasets
+python -m ruff format --check ../benchmark --exclude ../benchmark/datasets
+python -m mypy ../benchmark
+python -m pytest tests/unit/test_benchmark.py --no-cov
+```
+
 Frontend commands are run from `frontend/` with Node.js 24 and pnpm 11:
 
 ```powershell
