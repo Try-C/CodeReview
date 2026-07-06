@@ -34,19 +34,38 @@ function copyEvidence() {
   >
     <template v-if="issue">
       <div class="issue-meta">
-        <el-tag :type="issue.risk_level === 'High' ? 'danger' : issue.risk_level === 'Medium' ? 'warning' : 'success'">
+        <el-tag
+          :type="
+            issue.risk_level === 'High'
+              ? 'danger'
+              : issue.risk_level === 'Medium'
+                ? 'warning'
+                : 'success'
+          "
+        >
           {{ issue.risk_level }}
         </el-tag>
-        <el-tag type="info" style="margin-left: 8px">{{ issue.category }}</el-tag>
-        <el-tag v-if="issue.cwe_id" style="margin-left: 8px">{{ issue.cwe_id }}</el-tag>
-        <span v-if="issue.needs_human_review" style="margin-left: 8px; color: #e6a23c">
+        <el-tag type="info" style="margin-left: 8px">{{
+          issue.category
+        }}</el-tag>
+        <el-tag v-if="issue.cwe_id" style="margin-left: 8px">{{
+          issue.cwe_id
+        }}</el-tag>
+        <span
+          v-if="issue.needs_human_review"
+          style="margin-left: 8px; color: #e6a23c"
+        >
           ⚠ Needs human review
         </span>
       </div>
 
       <div class="issue-section">
         <h4>File & Lines</h4>
-        <code>{{ issue.relative_path }} L{{ issue.start_line }}-L{{ issue.end_line }}</code>
+        <code
+          >{{ issue.relative_path }} L{{ issue.start_line }}-L{{
+            issue.end_line
+          }}</code
+        >
       </div>
 
       <div class="issue-section">
@@ -81,12 +100,21 @@ function copyEvidence() {
         <h4>Details</h4>
         <ul class="detail-list">
           <li><strong>Rule:</strong> {{ issue.rule_id ?? 'N/A' }}</li>
-          <li><strong>Confidence:</strong> {{ (issue.confidence * 100).toFixed(0) }}%</li>
-          <li><strong>Critic:</strong> {{ issue.critic_decision ?? 'pending' }}</li>
-          <li v-if="issue.critic_reason"><strong>Critic reason:</strong> {{ issue.critic_reason }}</li>
+          <li>
+            <strong>Confidence:</strong>
+            {{ (issue.confidence * 100).toFixed(0) }}%
+          </li>
+          <li>
+            <strong>Critic:</strong> {{ issue.critic_decision ?? 'pending' }}
+          </li>
+          <li v-if="issue.critic_reason">
+            <strong>Critic reason:</strong> {{ issue.critic_reason }}
+          </li>
           <li><strong>Evidence status:</strong> {{ issue.evidence_status }}</li>
           <li><strong>Review round:</strong> {{ issue.review_round }}</li>
-          <li><strong>Fingerprint:</strong> <code>{{ issue.fingerprint }}</code></li>
+          <li>
+            <strong>Fingerprint:</strong> <code>{{ issue.fingerprint }}</code>
+          </li>
         </ul>
       </div>
     </template>
@@ -94,11 +122,37 @@ function copyEvidence() {
 </template>
 
 <style scoped>
-.issue-meta { margin-bottom: 16px; }
-.issue-section { margin-bottom: 20px; }
-.issue-section h4 { font-size: 14px; font-weight: 600; margin-bottom: 6px; color: #303133; }
-.code-block { background: #f5f7fa; padding: 12px; border-radius: 4px; overflow-x: auto; font-size: 13px; line-height: 1.5; }
-.code-block code { font-family: 'Courier New', monospace; white-space: pre-wrap; word-break: break-all; }
-.detail-list { list-style: none; padding: 0; }
-.detail-list li { padding: 4px 0; font-size: 13px; }
+.issue-meta {
+  margin-bottom: 16px;
+}
+.issue-section {
+  margin-bottom: 20px;
+}
+.issue-section h4 {
+  font-size: 14px;
+  font-weight: 600;
+  margin-bottom: 6px;
+  color: #303133;
+}
+.code-block {
+  background: #f5f7fa;
+  padding: 12px;
+  border-radius: 4px;
+  overflow-x: auto;
+  font-size: 13px;
+  line-height: 1.5;
+}
+.code-block code {
+  font-family: 'Courier New', monospace;
+  white-space: pre-wrap;
+  word-break: break-all;
+}
+.detail-list {
+  list-style: none;
+  padding: 0;
+}
+.detail-list li {
+  padding: 4px 0;
+  font-size: 13px;
+}
 </style>

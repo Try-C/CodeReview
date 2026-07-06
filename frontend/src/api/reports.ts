@@ -4,7 +4,9 @@ import { client } from './client'
 import type { IssueDetail, ReportAPIResponse } from '@/types/report'
 
 export async function fetchReport(taskId: number): Promise<ReportAPIResponse> {
-  const { data } = await client.get<ReportAPIResponse>(`/reviews/${taskId}/report`)
+  const { data } = await client.get<ReportAPIResponse>(
+    `/reviews/${taskId}/report`,
+  )
   return data
 }
 
@@ -30,6 +32,8 @@ export async function submitFeedback(
 }
 
 export async function fetchReportMarkdown(taskId: number): Promise<string> {
-  const { data } = await client.get<string>(`/reviews/${taskId}/export?format=markdown`)
+  const { data } = await client.get<string>(
+    `/reviews/${taskId}/export?format=markdown`,
+  )
   return data
 }

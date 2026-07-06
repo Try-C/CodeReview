@@ -95,13 +95,13 @@ const stageLabels: Record<string, string> = {
       <p v-if="currentStage">
         <strong>Stage:</strong> {{ stageLabels[currentStage] ?? currentStage }}
       </p>
-      <p v-if="currentMessage"><strong>Message:</strong> {{ currentMessage }}</p>
+      <p v-if="currentMessage">
+        <strong>Message:</strong> {{ currentMessage }}
+      </p>
     </div>
 
     <div v-if="completed" class="actions">
-      <el-button type="primary" @click="viewReport">
-        View Report
-      </el-button>
+      <el-button type="primary" @click="viewReport"> View Report </el-button>
     </div>
 
     <section v-if="events.length" class="event-log">
@@ -110,7 +110,9 @@ const stageLabels: Record<string, string> = {
         <span class="event-id">#{{ evt.id }}</span>
         <span class="event-type">{{ evt.event_type }}</span>
         <span v-if="evt.stage" class="event-stage">{{ evt.stage }}</span>
-        <span v-if="evt.progress !== undefined" class="event-progress">{{ evt.progress }}%</span>
+        <span v-if="evt.progress !== undefined" class="event-progress"
+          >{{ evt.progress }}%</span
+        >
         <span v-if="evt.message" class="event-msg">{{ evt.message }}</span>
       </div>
     </section>
@@ -118,19 +120,64 @@ const stageLabels: Record<string, string> = {
 </template>
 
 <style scoped>
-.progress-container { max-width: 700px; margin: 0 auto; padding: 24px; }
-h1 { font-size: 22px; margin-bottom: 4px; }
-.subtitle { color: #909399; font-size: 14px; margin-bottom: 24px; }
-.progress-bar-wrapper { margin-bottom: 16px; }
-.stage-info p { margin: 4px 0; font-size: 14px; }
-.actions { margin-top: 20px; }
+.progress-container {
+  max-width: 700px;
+  margin: 0 auto;
+  padding: 24px;
+}
+h1 {
+  font-size: 22px;
+  margin-bottom: 4px;
+}
+.subtitle {
+  color: #909399;
+  font-size: 14px;
+  margin-bottom: 24px;
+}
+.progress-bar-wrapper {
+  margin-bottom: 16px;
+}
+.stage-info p {
+  margin: 4px 0;
+  font-size: 14px;
+}
+.actions {
+  margin-top: 20px;
+}
 
-.event-log { margin-top: 32px; }
-.event-log h2 { font-size: 16px; margin-bottom: 8px; }
-.event-item { padding: 4px 8px; font-size: 13px; border-bottom: 1px solid #ebeef5; display: flex; gap: 12px; }
-.event-id { color: #909399; min-width: 40px; }
-.event-type { font-weight: 600; min-width: 80px; }
-.event-stage { color: #409eff; }
-.event-progress { color: #67c23a; }
-.event-msg { color: #606266; flex: 1; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.event-log {
+  margin-top: 32px;
+}
+.event-log h2 {
+  font-size: 16px;
+  margin-bottom: 8px;
+}
+.event-item {
+  padding: 4px 8px;
+  font-size: 13px;
+  border-bottom: 1px solid #ebeef5;
+  display: flex;
+  gap: 12px;
+}
+.event-id {
+  color: #909399;
+  min-width: 40px;
+}
+.event-type {
+  font-weight: 600;
+  min-width: 80px;
+}
+.event-stage {
+  color: #409eff;
+}
+.event-progress {
+  color: #67c23a;
+}
+.event-msg {
+  color: #606266;
+  flex: 1;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
 </style>
