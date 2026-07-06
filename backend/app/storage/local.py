@@ -76,6 +76,14 @@ class LocalProjectStorage:
         project = self._project(storage_key)
         self._safe_rmtree(project)
 
+    def project_path(self, storage_key: str) -> Path:
+        """Return a validated project root after rejecting links in its tree."""
+        project = self._project(storage_key)
+        if not project.is_dir():
+            raise RuntimeError("Project storage directory does not exist")
+        self._assert_tree_has_no_links(project)
+        return project.resolve(strict=True)
+
     def _prepare_root(self) -> Path:
         self._configured_root.mkdir(mode=0o700, parents=True, exist_ok=True)
         self._reject_link(self._configured_root)
