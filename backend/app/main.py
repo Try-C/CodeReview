@@ -31,14 +31,15 @@ def create_app(
 
     @asynccontextmanager
     async def lifespan(_: FastAPI) -> AsyncIterator[None]:
-        logger.info(
-            "application_started",
-            extra={
-                "app_env": runtime_settings.app_env,
-                "app_version": runtime_settings.app_version,
-            },
-        )
         try:
+            await runtime_context.validate_startup()
+            logger.info(
+                "application_started",
+                extra={
+                    "app_env": runtime_settings.app_env,
+                    "app_version": runtime_settings.app_version,
+                },
+            )
             yield
         finally:
             await runtime_context.close()

@@ -11,6 +11,9 @@ from alembic import context
 from app.core.config import get_settings
 from app.core.database import Base
 from app.models import (  # noqa: F401
+    CodeChunk,
+    CodeRelation,
+    CodeSymbol,
     Project,
     ProjectFile,
     ReviewTask,
