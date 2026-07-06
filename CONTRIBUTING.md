@@ -45,8 +45,17 @@ cleanup or future-module scaffolding with the current task.
 
 ## Verification commands
 
-Module 01 will add the executable verification commands with the backend and
-frontend toolchains. Until then, repository-only changes are checked with:
+Backend commands are run from `backend/` with Python 3.12:
+
+```powershell
+python -m pip install -e ".[dev]"
+python -m ruff check .
+python -m ruff format --check .
+python -m mypy app tests
+python -m pytest
+```
+
+Repository-only changes are checked from the repository root with:
 
 ```powershell
 git diff --check

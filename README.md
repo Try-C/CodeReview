@@ -11,6 +11,12 @@ LangGraph 工作流生成并校验证据充分的审查报告。
 当前处于 **Module 01：工程脚手架**。开发采用单子任务验收制，不提前创建
 未使用的模块或声称尚未测得的效果。
 
+已完成：
+
+- 仓库与协作规范。
+- FastAPI 应用工厂、类型化配置、结构化日志和统一错误响应。
+- `/api/v1/health/live` 与 `/api/v1/health/ready` 健康检查。
+
 ## 核心技术决策
 
 - Java/Python 统一封装在可扩展 `LanguageAdapter` 中。
@@ -25,6 +31,24 @@ LangGraph 工作流生成并校验证据充分的审查报告。
 - [完整项目大纲](docs/project-outline.md)
 - [开发协作规范](CONTRIBUTING.md)
 - [仓库内 AI 协作约束](AGENTS.md)
+
+## 后端本地运行
+
+使用 Python 3.12：
+
+```powershell
+cd backend
+python -m venv .venv
+.\.venv\Scripts\Activate.ps1
+python -m pip install -e ".[dev]"
+uvicorn app.main:app --reload
+```
+
+启动后可访问：
+
+- `GET http://127.0.0.1:8000/api/v1/health/live`
+- `GET http://127.0.0.1:8000/api/v1/health/ready`
+- `GET http://127.0.0.1:8000/docs`
 
 ## 开发边界
 
