@@ -51,6 +51,10 @@ class Settings(BaseSettings):
     max_total_lines: int = Field(default=150_000, ge=1, le=10_000_000)
     max_relative_path_length: int = Field(default=512, ge=64, le=4096)
     enabled_languages: tuple[Literal["java", "python"], ...] = ("java", "python")
+    chunk_ideal_min_lines: int = Field(default=50, ge=1, le=10_000)
+    chunk_ideal_max_lines: int = Field(default=150, ge=1, le=10_000)
+    chunk_max_lines: int = Field(default=200, ge=1, le=10_000)
+    chunk_overlap_lines: int = Field(default=15, ge=0, le=1000)
 
     @field_validator("api_v1_prefix")
     @classmethod
@@ -73,6 +77,10 @@ class Settings(BaseSettings):
     @model_validator(mode="after")
     def validate_production_safety(self) -> Self:
         """Prevent unsafe debug and wildcard CORS settings in production."""
+        if not (self.chunk_ideal_min_lines <= self.chunk_ideal_max_lines <= self.chunk_max_lines):
+            raise ValueError("chunk line limits must satisfy ideal_min <= ideal_max <= max")
+        if self.chunk_overlap_lines >= self.chunk_max_lines:
+            raise ValueError("chunk_overlap_lines must be less than chunk_max_lines")
         if self.app_env == "production" and self.debug:
             raise ValueError("debug must be disabled in production")
         if self.app_env == "production" and "*" in self.allowed_origins:
