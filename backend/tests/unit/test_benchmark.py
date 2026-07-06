@@ -6,23 +6,18 @@ rules (§18.3), and that the FakePredictor produces the expected results.
 
 from __future__ import annotations
 
-import sys
 from pathlib import Path
 
 import pytest
 
-# The benchmark package lives at the project root, not inside backend.
-_PROJECT_ROOT = Path(__file__).resolve().parents[3]
-if str(_PROJECT_ROOT) not in sys.path:
-    sys.path.insert(0, str(_PROJECT_ROOT))
-
-from benchmark.metrics import (  # noqa: E402
+from benchmark.experiments import _summarize_telemetry, run_experiments
+from benchmark.metrics import (
     BenchmarkMetrics,
     calculate_precision_recall_f1,
     calculate_recall_at_k,
 )
-from benchmark.predictors.fake_predictor import FakePredictor  # noqa: E402
-from benchmark.runner import (  # noqa: E402
+from benchmark.predictors.fake_predictor import FakePredictor
+from benchmark.runner import (
     EvaluationRunner,
     GroundTruthEntry,
     PredictionEntry,
@@ -33,7 +28,9 @@ from benchmark.runner import (  # noqa: E402
     match_predictions,
 )
 
-from benchmark.experiments import _summarize_telemetry, run_experiments  # noqa: E402
+# The benchmark package lives at the project root, configured through
+# pytest's pythonpath so imports stay in the standard top-level block.
+_PROJECT_ROOT = Path(__file__).resolve().parents[3]
 
 # ── Path helpers ────────────────────────────────────────────────────────────
 

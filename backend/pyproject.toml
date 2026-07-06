@@ -52,6 +52,7 @@ addopts = [
   "--cov-fail-under=85",
 ]
 testpaths = ["tests"]
+pythonpath = [".."]
 asyncio_mode = "auto"
 markers = [
   "asyncio: mark a test as an async test",
@@ -73,6 +74,9 @@ target-version = "py312"
 
 [tool.ruff.lint]
 select = ["B", "E", "F", "I", "RUF", "SIM", "UP"]
+
+[tool.ruff.lint.isort]
+known-first-party = ["app", "benchmark", "tests"]
 
 [tool.ruff.lint.per-file-ignores]
 "tests/**/*.py" = ["B008"]
