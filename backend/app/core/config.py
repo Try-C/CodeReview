@@ -55,6 +55,18 @@ class Settings(BaseSettings):
     chunk_ideal_max_lines: int = Field(default=150, ge=1, le=10_000)
     chunk_max_lines: int = Field(default=200, ge=1, le=10_000)
     chunk_overlap_lines: int = Field(default=15, ge=0, le=1000)
+    embedding_provider: Literal["dashscope"] = "dashscope"
+    dashscope_api_key: SecretStr | None = None
+    dashscope_base_url: str = "https://dashscope.aliyuncs.com/api/v1"
+    embedding_model: str = "text-embedding-v4"
+    embedding_dimension: Literal[1024] = 1024
+    embedding_batch_size: int = Field(default=10, ge=1, le=10)
+    embedding_max_input_tokens: int = Field(default=8192, ge=1, le=8192)
+    embedding_output_type: Literal["dense"] = "dense"
+    embedding_version: int = Field(default=1, ge=1)
+    pgvector_min_version: str = "0.8.0"
+    hnsw_ef_search: int = Field(default=100, ge=1, le=1000)
+    hnsw_iterative_scan: Literal["strict_order", "relaxed_order"] = "strict_order"
 
     @field_validator("api_v1_prefix")
     @classmethod

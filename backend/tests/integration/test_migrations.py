@@ -23,6 +23,9 @@ def test_initial_migration_upgrades_and_downgrades(tmp_path: Path) -> None:
     inspector = inspect(engine)
     assert set(inspector.get_table_names()) == {
         "alembic_version",
+        "code_chunks",
+        "code_relations",
+        "code_symbols",
         "project_files",
         "projects",
         "review_tasks",
@@ -55,6 +58,18 @@ def test_initial_migration_upgrades_and_downgrades(tmp_path: Path) -> None:
         "scan_status",
         "scan_priority",
         "scan_reason",
+    }
+    assert {column["name"] for column in inspector.get_columns("code_chunks")} >= {
+        "chunk_fingerprint",
+        "content_hash",
+        "embedding",
+        "embedding_error",
+        "search_text",
+        "search_vector",
+    }
+    assert {index["name"] for index in inspector.get_indexes("code_chunks")} == {
+        "ix_code_chunks_project_language",
+        "ix_code_chunks_project_path",
     }
     assert {index["name"] for index in inspector.get_indexes("projects")} == {"ix_projects_user_id"}
     assert {constraint["name"] for constraint in inspector.get_check_constraints("projects")} == {

@@ -8,6 +8,7 @@ from typing import Literal, Protocol
 from app.core.config import Settings
 from app.core.database import DatabaseDependency, SessionFactory
 from app.core.redis import RedisDependency, TaskEventBus
+from app.indexing.database import PgVectorStartupCheck, PgVectorValidator
 from app.storage.local import LocalProjectStorage
 from app.tasks.celery_app import CeleryTaskDispatcher, TaskDispatcher, create_celery_app
 
@@ -27,6 +28,13 @@ class HealthDependency(Protocol):
         """Release resources owned by the dependency."""
 
 
+class StartupCheck(Protocol):
+    """One compatibility invariant that must hold before serving requests."""
+
+    async def validate(self) -> None:
+        """Raise when the process is incompatible with its runtime schema."""
+
+
 @dataclass(frozen=True, slots=True)
 class RuntimeContext:
     """Own process-wide dependencies injected into the FastAPI application."""
@@ -36,6 +44,12 @@ class RuntimeContext:
     project_storage: LocalProjectStorage | None = None
     event_bus: TaskEventBus | None = None
     task_dispatcher: TaskDispatcher | None = None
+    startup_checks: tuple[StartupCheck, ...] = ()
+
+    async def validate_startup(self) -> None:
+        """Validate schema-dependent capabilities before accepting traffic."""
+        for check in self.startup_checks:
+            await check.validate()
 
     async def health_checks(
         self,
@@ -101,4 +115,13 @@ def build_runtime(settings: Settings) -> RuntimeContext:
         project_storage=LocalProjectStorage(settings.upload_root),
         event_bus=redis,
         task_dispatcher=CeleryTaskDispatcher(create_celery_app(settings)),
+        startup_checks=(
+            PgVectorStartupCheck(
+                database.session_factory,
+                PgVectorValidator(
+                    dimension=settings.embedding_dimension,
+                    minimum_version=settings.pgvector_min_version,
+                ),
+            ),
+        ),
     )
