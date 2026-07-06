@@ -11,7 +11,7 @@ from app.indexing.database import HnswSearchOptions
 from app.models.index import CodeChunk
 
 VECTOR_COSINE_SQL = """
-    SELECT id, 1 - (embedding <=> :query_vector) AS similarity
+    SELECT id, 1 - (embedding <=> :query_vector::vector) AS similarity
     FROM code_chunks
     WHERE project_id = :project_id
       AND language = ANY(:languages)
@@ -19,7 +19,7 @@ VECTOR_COSINE_SQL = """
       AND embedding_status = 'ready'
       AND index_status = 'ready'
       {path_filter}
-    ORDER BY embedding <=> :query_vector
+    ORDER BY embedding <=> :query_vector::vector
     LIMIT :top_k
 """
 
@@ -58,8 +58,10 @@ class VectorSearcher:
 
         if dialect_name == "postgresql":
             await self._hnsw.apply(session)
+            # pgvector expects the vector as a string like '[0.1, 0.2, ...]'
+            vector_str = json.dumps(query_vector)
             params: dict[str, object] = {
-                "query_vector": query_vector,
+                "query_vector": vector_str,
                 "project_id": project_id,
                 "languages": list(languages),
                 "top_k": top_k,
