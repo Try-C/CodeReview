@@ -1,21 +1,21 @@
-import { fileURLToPath, URL } from "node:url";
+import { fileURLToPath, URL } from 'node:url'
 
-import vue from "@vitejs/plugin-vue";
-import { defineConfig } from "vitest/config";
+import vue from '@vitejs/plugin-vue'
+import { defineConfig } from 'vitest/config'
 
 export default defineConfig({
   plugins: [vue()],
   resolve: {
     alias: {
-      "@": fileURLToPath(new URL("./src", import.meta.url)),
+      '@': fileURLToPath(new URL('./src', import.meta.url)),
     },
   },
   server: {
-    host: "127.0.0.1",
+    host: '127.0.0.1',
     port: 5173,
     proxy: {
-      "/api": {
-        target: "http://127.0.0.1:8000",
+      '/api': {
+        target: 'http://127.0.0.1:8000',
         changeOrigin: true,
       },
     },
@@ -24,15 +24,15 @@ export default defineConfig({
     rolldownOptions: {
       onLog(level, log, defaultHandler) {
         const isKnownVueUsePureAnnotation =
-          log.code === "INVALID_ANNOTATION" &&
-          log.id?.includes("@vueuse/core") === true;
-        if (isKnownVueUsePureAnnotation) return;
-        defaultHandler(level, log);
+          log.code === 'INVALID_ANNOTATION' &&
+          log.id?.includes('@vueuse/core') === true
+        if (isKnownVueUsePureAnnotation) return
+        defaultHandler(level, log)
       },
     },
   },
   test: {
-    environment: "jsdom",
+    environment: 'jsdom',
     clearMocks: true,
   },
-});
+})

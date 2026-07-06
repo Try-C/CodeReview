@@ -1,6 +1,6 @@
 <script setup lang="ts">
-import { ElTag } from "element-plus";
-import { RouterView } from "vue-router";
+import { ElTag } from 'element-plus'
+import { RouterView } from 'vue-router'
 </script>
 
 <template>

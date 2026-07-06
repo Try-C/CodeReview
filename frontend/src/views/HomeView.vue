@@ -7,39 +7,39 @@ import {
   ElDescriptionsItem,
   ElSkeleton,
   ElTag,
-} from "element-plus";
-import { computed, onMounted } from "vue";
+} from 'element-plus'
+import { computed, onMounted } from 'vue'
 
-import { useHealthStore } from "@/stores/health";
+import { useHealthStore } from '@/stores/health'
 
-const healthStore = useHealthStore();
+const healthStore = useHealthStore()
 
 const statusType = computed(() => {
-  if (healthStore.phase === "ready") return "success";
-  if (healthStore.phase === "error") return "danger";
-  return "info";
-});
+  if (healthStore.phase === 'ready') return 'success'
+  if (healthStore.phase === 'error') return 'danger'
+  return 'info'
+})
 
 const statusLabel = computed(() => {
   const labels = {
-    idle: "等待检查",
-    loading: "检查中",
-    ready: "API 已就绪",
-    error: "API 不可用",
-  };
-  return labels[healthStore.phase];
-});
+    idle: '等待检查',
+    loading: '检查中',
+    ready: 'API 已就绪',
+    error: 'API 不可用',
+  }
+  return labels[healthStore.phase]
+})
 
 const checkedAt = computed(() => {
-  if (!healthStore.lastCheckedAt) return "尚未检查";
-  return healthStore.lastCheckedAt.toLocaleTimeString("zh-CN", {
+  if (!healthStore.lastCheckedAt) return '尚未检查'
+  return healthStore.lastCheckedAt.toLocaleTimeString('zh-CN', {
     hour12: false,
-  });
-});
+  })
+})
 
 onMounted(() => {
-  void healthStore.refresh();
-});
+  void healthStore.refresh()
+})
 </script>
 
 <template>
@@ -99,7 +99,7 @@ onMounted(() => {
             effect="plain"
             size="small"
           >
-            {{ healthStore.readiness.checks.configuration ?? "unknown" }}
+            {{ healthStore.readiness.checks.configuration ?? 'unknown' }}
           </ElTag>
         </ElDescriptionsItem>
       </ElDescriptions>

@@ -59,10 +59,16 @@ Frontend commands are run from `frontend/` with Node.js 24 and pnpm 11:
 
 ```powershell
 pnpm install
+pnpm run lint
+pnpm run format:check
 pnpm run typecheck
 pnpm test
 pnpm run build
 ```
+
+Use `pnpm run check` to execute the complete frontend verification sequence.
+GitHub Actions runs the same backend and frontend checks on module branches,
+pull requests, and `main`.
 
 Repository-only changes are checked from the repository root with:
 
