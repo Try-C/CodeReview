@@ -279,6 +279,31 @@ class TestMatching:
         assert matches == []
         assert len(up) == 1
 
+    def test_uses_maximum_cardinality_instead_of_greedy_matching(self) -> None:
+        """A flexible prediction must be reassigned to preserve two TPs."""
+        gt = [
+            _make_gt("gt-a", path="src/A.java", sink=10, start=1, end=10),
+            _make_gt("gt-b", path="src/A.java", sink=4, start=1, end=4),
+        ]
+        preds = [
+            _make_pred(path="src/A.java", start=1, end=10),
+            _make_pred(path="src/A.java", start=5, end=10),
+        ]
+
+        matches, unmatched_gt, unmatched_pred = match_predictions(gt, preds)
+
+        assert len(matches) == 2
+        assert unmatched_gt == []
+        assert unmatched_pred == []
+
+    def test_reported_overlap_ratio_excludes_matching_priority_bonus(self) -> None:
+        gt = [_make_gt("gt-1", sink=10, start=1, end=10)]
+        preds = [_make_pred(start=1, end=10)]
+
+        matches, _, _ = match_predictions(gt, preds)
+
+        assert matches[0].overlap_ratio == 1.0
+
 
 # ── Fake predictor tests ────────────────────────────────────────────────────
 
@@ -421,6 +446,58 @@ class TestEvaluationRunner:
         assert d["tp"] == 4
         assert d["recall_at_k"][5] == 0.5
 
+    def test_recall_at_k_uses_maximum_matching_for_each_prefix(self, tmp_path: Path) -> None:
+        gt_path = tmp_path / "java.json"
+        gt_path.write_text(
+            """
+            {
+              "entries": [
+                {
+                  "id": "gt-1",
+                  "language": "java",
+                  "category": "security",
+                  "relative_path": "src/A.java",
+                  "cwe_id": "CWE-89",
+                  "sink_line": 10,
+                  "start_line": 1,
+                  "end_line": 10,
+                  "vulnerable": true
+                },
+                {
+                  "id": "gt-2",
+                  "language": "java",
+                  "category": "security",
+                  "relative_path": "src/A.java",
+                  "cwe_id": "CWE-89",
+                  "sink_line": 10,
+                  "start_line": 1,
+                  "end_line": 10,
+                  "vulnerable": true
+                }
+              ]
+            }
+            """,
+            encoding="utf-8",
+        )
+        runner = EvaluationRunner(str(tmp_path))
+
+        class RankedPredictor:
+            def predict(self, dataset_root: str, language: str) -> list[PredictionEntry]:
+                return [
+                    _make_pred(path="src/A.java", start=1, end=10),
+                    _make_pred(path="src/A.java", start=1, end=10),
+                ]
+
+        result = runner.evaluate(
+            RankedPredictor(),
+            _DATASETS,
+            "java",
+            recall_at_k_values=[1, 2],
+        )
+
+        assert result.unmatched_pred_indices == ()
+        assert result.metrics.recall_at_k == {1: 0.5, 2: 1.0}
+
 
 # ── Ground truth file integrity ─────────────────────────────────────────────
 
@@ -457,3 +534,19 @@ class TestGroundTruthIntegrity:
                     f"{cat_dir.relative_to(_DATASETS)} should have ≥2 {lang} files "
                     f"(vulnerable + safe), found {len(files)}: {[f.name for f in files]}"
                 )
+
+    def test_assert_check_sink_points_to_assert_statement(self) -> None:
+        runner = EvaluationRunner(_GT_DIR)
+        entry = next(
+            item
+            for item in runner.load_ground_truth("python")
+            if item.id == "python-assert-check-001"
+        )
+        source = (
+            (Path(_DATASETS) / ".." / entry.relative_path)
+            .resolve()
+            .read_text(encoding="utf-8")
+            .splitlines()
+        )
+
+        assert source[entry.sink_line - 1].lstrip().startswith("assert ")

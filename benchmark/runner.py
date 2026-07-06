@@ -8,15 +8,13 @@ from __future__ import annotations
 
 import json
 import logging
-import os
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, Protocol
 
 from benchmark.metrics import (
     BenchmarkMetrics,
     calculate_precision_recall_f1,
-    calculate_recall_at_k,
 )
 
 logger = logging.getLogger(__name__)
@@ -106,8 +104,7 @@ class EvaluationResult:
 class Predictor(Protocol):
     """A callable that produces predictions from a dataset directory."""
 
-    def predict(self, dataset_root: str, language: str) -> list[PredictionEntry]:
-        ...
+    def predict(self, dataset_root: str, language: str) -> list[PredictionEntry]: ...
 
 
 # ── Matching logic (§18.3) ──────────────────────────────────────────────────
@@ -171,48 +168,81 @@ def match_predictions(
     ground_truth: list[GroundTruthEntry],
     predictions: list[PredictionEntry],
 ) -> tuple[list[MatchedResult], list[str], list[int]]:
-    """Deterministic one-to-one maximum matching (§18.3).
+    """Deterministic one-to-one maximum-cardinality matching (§18.3).
 
-    Builds all candidate (gt, pred) pairs, sorts by overlap quality descending,
-    then greedily assigns in order.  Each GT entry and each prediction is used
-    at most once.  Duplicate predictions after matching are implicitly FP.
+    Uses augmenting paths so a locally attractive pair cannot reduce the total
+    number of matches. Candidate ordering only chooses among equally large
+    matchings; it does not change TP count. Duplicate predictions are FP.
 
     Returns:
         (matches, unmatched_gt_ids, unmatched_pred_indices)
     """
     vulnerable = [gt for gt in ground_truth if gt.vulnerable]
 
-    # Build candidate pairs with their overlap ratios.
-    candidates: list[tuple[int, int, float]] = []  # (gt_idx, pred_idx, ratio)
-    for gi, gt in enumerate(vulnerable):
-        for pi, pred in enumerate(predictions):
-            if _is_candidate_match(pred, gt):
-                ratio = _overlap_ratio(
-                    pred.start_line, pred.end_line, gt.start_line, gt.end_line
-                )
-                # Prefer matches that cover the sink line.
-                bonus = 1.0 if _prediction_covers_sink(pred, gt) else 0.0
-                candidates.append((gi, pi, ratio + bonus))
-
-    # Sort by quality descending: higher (ratio + bonus) first.
-    candidates.sort(key=lambda x: x[2], reverse=True)
-
-    matched_gt: set[int] = set()
-    matched_pred: set[int] = set()
-    matches: list[MatchedResult] = []
-
-    for gi, pi, ratio in candidates:
-        if gi not in matched_gt and pi not in matched_pred:
-            matched_gt.add(gi)
-            matched_pred.add(pi)
-            matches.append(
-                MatchedResult(
-                    ground_truth_id=vulnerable[gi].id,
-                    prediction_index=pi,
-                    overlap_ratio=ratio,
-                )
+    adjacency: dict[int, list[int]] = {}
+    for pi, pred in enumerate(predictions):
+        candidate_gt_indices = [
+            gi for gi, gt in enumerate(vulnerable) if _is_candidate_match(pred, gt)
+        ]
+        candidate_gt_indices.sort(
+            key=lambda gi: (
+                -int(_prediction_covers_sink(pred, vulnerable[gi])),
+                -_overlap_ratio(
+                    pred.start_line,
+                    pred.end_line,
+                    vulnerable[gi].start_line,
+                    vulnerable[gi].end_line,
+                ),
+                vulnerable[gi].id,
             )
+        )
+        adjacency[pi] = candidate_gt_indices
 
+    prediction_order = sorted(
+        range(len(predictions)),
+        key=lambda pi: (
+            _normalize_path(predictions[pi].relative_path),
+            predictions[pi].start_line,
+            predictions[pi].end_line,
+            predictions[pi].language,
+            predictions[pi].category,
+            predictions[pi].cwe_id,
+            predictions[pi].risk_level,
+            predictions[pi].fingerprint,
+            pi,
+        ),
+    )
+    gt_to_prediction: dict[int, int] = {}
+
+    def assign(pi: int, visited_gt: set[int]) -> bool:
+        for gi in adjacency[pi]:
+            if gi in visited_gt:
+                continue
+            visited_gt.add(gi)
+            current_pi = gt_to_prediction.get(gi)
+            if current_pi is None or assign(current_pi, visited_gt):
+                gt_to_prediction[gi] = pi
+                return True
+        return False
+
+    for pi in prediction_order:
+        assign(pi, set())
+
+    matches = [
+        MatchedResult(
+            ground_truth_id=vulnerable[gi].id,
+            prediction_index=pi,
+            overlap_ratio=_overlap_ratio(
+                predictions[pi].start_line,
+                predictions[pi].end_line,
+                vulnerable[gi].start_line,
+                vulnerable[gi].end_line,
+            ),
+        )
+        for gi, pi in sorted(gt_to_prediction.items(), key=lambda item: vulnerable[item[0]].id)
+    ]
+    matched_gt = set(gt_to_prediction)
+    matched_pred = set(gt_to_prediction.values())
     unmatched_gt_ids = [gt.id for i, gt in enumerate(vulnerable) if i not in matched_gt]
     unmatched_pred_indices = [i for i in range(len(predictions)) if i not in matched_pred]
 
@@ -271,13 +301,10 @@ class EvaluationRunner:
         precision, recall, f1 = calculate_precision_recall_f1(tp, fp, fn)
 
         # High-risk false positive rate.
-        high_risk_preds = [
-            i for i, p in enumerate(predictions) if p.risk_level == "High"
-        ]
-        high_risk_fp = len([i for i in high_risk_preds if i not in {m.prediction_index for m in matches}])
-        high_risk_fp_rate = (
-            high_risk_fp / len(high_risk_preds) if high_risk_preds else 0.0
-        )
+        high_risk_preds = [i for i, p in enumerate(predictions) if p.risk_level == "High"]
+        matched_prediction_indices = {match.prediction_index for match in matches}
+        high_risk_fp = len([i for i in high_risk_preds if i not in matched_prediction_indices])
+        high_risk_fp_rate = high_risk_fp / len(high_risk_preds) if high_risk_preds else 0.0
 
         # Effective localization rate: TPs where prediction covers sink_line.
         localized = 0
@@ -288,19 +315,16 @@ class EvaluationRunner:
                 localized += 1
         effective_localization_rate = localized / tp if tp > 0 else 0.0
 
-        # Recall@K: use prediction order as relevance ranking.
-        matched_gt_ids = {m.ground_truth_id for m in matches}
-        all_gt_ids = {g.id for g in vulnerable}
-        # Build ranked list: each prediction maps to GT ids it could match.
-        ranked: list[str] = []
-        for pred in predictions:
-            for g in vulnerable:
-                if _is_candidate_match(pred, g):
-                    ranked.append(g.id)
-                    break  # each prediction contributes at most one GT id
-            else:
-                ranked.append("")  # no match → placeholder
-        recall_at_k = calculate_recall_at_k(matched_gt_ids, all_gt_ids, ranked, recall_at_k_values)
+        # Prediction order is the predictor's relevance ranking. Re-match each
+        # prefix so a duplicate or globally unmatched prediction cannot borrow
+        # a match made by a lower-ranked prediction.
+        recall_at_k: dict[int, float] = {}
+        for k in recall_at_k_values:
+            if k < 1 or not vulnerable:
+                recall_at_k[k] = 0.0
+                continue
+            top_k_matches, _, _ = match_predictions(gt, predictions[:k])
+            recall_at_k[k] = len(top_k_matches) / len(vulnerable)
 
         metrics = BenchmarkMetrics(
             precision=precision,
