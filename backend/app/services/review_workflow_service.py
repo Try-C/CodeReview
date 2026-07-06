@@ -315,7 +315,13 @@ class ReviewWorkflowService:
         )
         await session.execute(delete(ReviewIssue).where(ReviewIssue.task_id == task_id))
         await session.flush()
+        # Deduplicate by fingerprint — Critic re-review may produce duplicate entries
+        seen: set[str] = set()
         for issue in issues:
+            fp = str(issue.get("fingerprint", ""))
+            if fp in seen:
+                continue
+            seen.add(fp)
             row = ReviewIssue(
                 task_id=task_id,
                 project_id=project_id,

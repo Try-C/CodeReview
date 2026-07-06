@@ -10,7 +10,7 @@ from fastapi import APIRouter, Depends, Header, Request, Response, status
 from fastapi.responses import StreamingResponse
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.api.auth import CurrentUser
+from app.api.auth import CurrentUser, CurrentUserSSE
 from app.core.dependencies import (
     EventBusDependency,
     TaskDispatcherDependency,
@@ -96,7 +96,7 @@ async def cancel_review(
 async def stream_review_events(
     task_id: int,
     request: Request,
-    current_user: CurrentUser,
+    current_user: CurrentUserSSE,
     session: SessionDependency,
     event_bus: EventBusDependency,
     last_event_id: LastEventIdHeader = None,

@@ -54,7 +54,27 @@ async def get_current_user(
     return user
 
 
+async def get_current_user_sse(
+    request: Request,
+    credentials: BearerDependency,
+    session: SessionDependency,
+    token: str = "",
+) -> User:
+    """Same as get_current_user but also accepts ?token= query param for EventSource."""
+    token_value = credentials.credentials if (
+        credentials is not None and credentials.scheme.lower() == "bearer"
+    ) else token
+    if not token_value:
+        raise authentication_error()
+    user_id = AccessTokenService(_settings(request)).subject(token_value)
+    user = await session.scalar(select(User).where(User.id == user_id))
+    if user is None:
+        raise authentication_error()
+    return user
+
+
 CurrentUser = Annotated[User, Depends(get_current_user)]
+CurrentUserSSE = Annotated[User, Depends(get_current_user_sse)]
 
 
 @router.post(
