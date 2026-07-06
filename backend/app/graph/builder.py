@@ -7,7 +7,8 @@ Agents and deterministic nodes are injected at build time.
 from __future__ import annotations
 
 import logging
-from collections.abc import Callable
+from collections.abc import Awaitable, Callable
+from inspect import isawaitable
 from typing import Any
 
 from langgraph.errors import GraphRecursionError
@@ -36,6 +37,7 @@ from app.graph.routes import (
     route_guard_planner,
     route_guard_retrieve,
     route_guard_review,
+    route_init_item,
     route_review_decision,
     route_rewrite_query,
 )
@@ -55,6 +57,14 @@ def build_review_graph(
     retrieve_fn: Callable[..., Any] | None = None,
     evidence_verify_fn: Callable[..., Any] | None = None,
     report_node: Callable[..., Any] | None = None,
+    node_run_writer: (
+        Callable[
+            [str, CodeReviewState, dict[str, Any] | None, Exception | None],
+            Awaitable[None],
+        ]
+        | None
+    ) = None,
+    cancel_check: Callable[[int], Awaitable[bool]] | None = None,
 ) -> Any:  # CompiledStateGraph
     """Build and compile the full review graph per §12.3.
 
@@ -63,11 +73,31 @@ def build_review_graph(
     """
     builder = StateGraph(CodeReviewState)
 
+    def add_node(name: str, node: Callable[..., Any]) -> None:
+        if node_run_writer is None:
+            builder.add_node(name, node)
+            return
+
+        async def recorded(state: CodeReviewState) -> dict[str, Any]:
+            try:
+                result = node(state)
+                if isawaitable(result):
+                    result = await result
+                if not isinstance(result, dict):
+                    raise TypeError(f"Graph node {name} must return a state update dict")
+            except Exception as exc:
+                await node_run_writer(name, state, None, exc)
+                raise
+            await node_run_writer(name, state, result, None)
+            return result
+
+        builder.add_node(name, recorded)
+
     # ── Guard instances (§12.4) ──────────────────────────────────────────
-    guard_planner = BudgetGuardNode("planner")
-    guard_retrieve = BudgetGuardNode("retrieve")
-    guard_review = BudgetGuardNode("review")
-    guard_critic = BudgetGuardNode("critic")
+    guard_planner = BudgetGuardNode("planner", cancel_check)
+    guard_retrieve = BudgetGuardNode("retrieve", cancel_check)
+    guard_review = BudgetGuardNode("review", cancel_check)
+    guard_critic = BudgetGuardNode("critic", cancel_check)
 
     # ── Deterministic nodes ──────────────────────────────────────────────
     init_item = InitItemNode()
@@ -86,32 +116,32 @@ def build_review_graph(
     _critic = critic_node
 
     # ── Add nodes ────────────────────────────────────────────────────────
-    builder.add_node("guard_planner", guard_planner)
-    builder.add_node("planner", _planner)
-    builder.add_node("init_item", init_item)
-    builder.add_node("guard_retrieve", guard_retrieve)
-    builder.add_node("guard_review", guard_review)
-    builder.add_node("guard_critic", guard_critic)
-    builder.add_node("review_decision", review_decision)
-    builder.add_node("rewrite_query", rewrite_query)
-    builder.add_node("evidence_decision", evidence_decision)
-    builder.add_node("critic_decision", critic_decision)
-    builder.add_node("prepare_rereview", prepare_rereview)
-    builder.add_node("finalize_item", finalize_item)
-    builder.add_node("advance_item", advance_item)
-    builder.add_node("report", report)
+    add_node("guard_planner", guard_planner)
+    add_node("planner", _planner)
+    add_node("init_item", init_item)
+    add_node("guard_retrieve", guard_retrieve)
+    add_node("guard_review", guard_review)
+    add_node("guard_critic", guard_critic)
+    add_node("review_decision", review_decision)
+    add_node("rewrite_query", rewrite_query)
+    add_node("evidence_decision", evidence_decision)
+    add_node("critic_decision", critic_decision)
+    add_node("prepare_rereview", prepare_rereview)
+    add_node("finalize_item", finalize_item)
+    add_node("advance_item", advance_item)
+    add_node("report", report)
 
     # Agent nodes.
-    builder.add_node("review", _reviewer)
-    builder.add_node("critic", _critic)
+    add_node("review", _reviewer)
+    add_node("critic", _critic)
 
     # File-scan / parse / index chain (pre-existing services).
     if file_scan_node:
-        builder.add_node("file_scan", file_scan_node)
+        add_node("file_scan", file_scan_node)
     if code_parse_node:
-        builder.add_node("code_parse", code_parse_node)
+        add_node("code_parse", code_parse_node)
     if index_build_node:
-        builder.add_node("index_build", index_build_node)
+        add_node("index_build", index_build_node)
 
     # Retrieve (injected or no-op).
     retrieve_node_fn: Callable[..., Any]
@@ -123,7 +153,7 @@ def build_review_graph(
             return {"retrieved_context": "", "next_action": "guard_review"}
 
         retrieve_node_fn = _noop_retrieve
-    builder.add_node("retrieve", retrieve_node_fn)
+    add_node("retrieve", retrieve_node_fn)
 
     # Evidence verify.
     evidence_verify_fn_node: Callable[..., Any]
@@ -137,7 +167,7 @@ def build_review_graph(
             return {"current_issues": passed, "next_action": na}
 
         evidence_verify_fn_node = _noop_evidence
-    builder.add_node("evidence_verify", evidence_verify_fn_node)
+    add_node("evidence_verify", evidence_verify_fn_node)
 
     # ── Entry point ──────────────────────────────────────────────────────
     # For M10, the pipeline starts at FileScan (or Planner if scans are done).
@@ -165,8 +195,15 @@ def build_review_graph(
     # Planner → InitItem (always)
     builder.add_edge("planner", "init_item")
 
-    # InitItem → GuardRetrieve
-    builder.add_edge("init_item", "guard_retrieve")
+    # InitItem → GuardRetrieve | Report
+    builder.add_conditional_edges(
+        "init_item",
+        route_init_item,
+        {
+            "guard_retrieve": "guard_retrieve",
+            "report": "report",
+        },
+    )
 
     # GuardRetrieve → Retrieve | Report
     builder.add_conditional_edges(
@@ -241,13 +278,13 @@ def build_review_graph(
     # Critic → CriticDecision
     builder.add_edge("critic", "critic_decision")
 
-    # CriticDecision → PrepareRereview | AdvanceItem
+    # CriticDecision → PrepareRereview | FinalizeItem
     builder.add_conditional_edges(
         "critic_decision",
         route_critic_decision,
         {
-            "guard_retrieve": "guard_retrieve",
-            "advance_item": "advance_item",
+            "prepare_rereview": "prepare_rereview",
+            "finalize_item": "finalize_item",
         },
     )
 
@@ -282,16 +319,19 @@ async def invoke_graph(
     """Invoke the compiled graph with recursion-limit guarding (§12.4)."""
     settings = get_settings()
     limit = recursion_limit if recursion_limit is not None else settings.langgraph_recursion_limit
+    latest_state = dict(initial_state)
     try:
-        result: dict[str, Any] = await graph.ainvoke(
+        async for state_value in graph.astream(
             initial_state,
             config={"recursion_limit": limit},
-        )
-        return result
+            stream_mode="values",
+        ):
+            latest_state = dict(state_value)
+        return latest_state
     except GraphRecursionError:
         logger.error("graph_recursion_limit_exceeded")
         return {
-            **initial_state,
+            **latest_state,
             "next_action": "done",
             "stop_reason": "graph_recursion_limit_exceeded",
             "error_message": "Graph recursion limit exceeded — partial results saved.",

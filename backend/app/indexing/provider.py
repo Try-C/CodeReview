@@ -47,6 +47,22 @@ class EmbeddingProvider(Protocol):
         """Return one dense vector per input, preserving input order."""
 
 
+class UnavailableEmbeddingProvider:
+    """Fail predictably so indexing and retrieval can degrade to keyword-only."""
+
+    model = "unavailable"
+    dimension = 1024
+
+    async def embed(
+        self,
+        texts: Sequence[str],
+        *,
+        text_type: EmbeddingTextType,
+    ) -> list[list[float]]:
+        del texts, text_type
+        raise EmbeddingProviderError("EMBEDDING_PROVIDER_UNAVAILABLE")
+
+
 class DashScopeEmbeddingProvider:
     """Call the native DashScope endpoint with an injected HTTP client."""
 

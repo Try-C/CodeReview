@@ -6,6 +6,7 @@ import logging
 from typing import Any
 
 from app.agents.prompts.templates import build_planner_messages
+from app.agents.usage import build_failed_usage_update, build_usage_update
 from app.graph.state import CodeReviewState
 from app.llm.structured import StructuredLLM
 from app.llm.usage import LLMCallResult
@@ -32,7 +33,9 @@ class PlannerAgent:
             return {
                 "review_plan": [],
                 "next_action": "report",
-                "error_message": f"Planner failed: {exc}",
+                "error_message": "Planner failed",
+                "stop_reason": "planner_failed",
+                **build_failed_usage_update(state, exc),
             }
 
         items = [item.model_dump() for item in plan.items]
@@ -40,7 +43,5 @@ class PlannerAgent:
         return {
             "review_plan": items,
             "next_action": "init_item",
-            "llm_call_count": state.llm_call_count + 1,
-            "input_tokens": state.input_tokens + result.input_tokens,
-            "output_tokens": state.output_tokens + result.output_tokens,
+            **build_usage_update(state, result),
         }

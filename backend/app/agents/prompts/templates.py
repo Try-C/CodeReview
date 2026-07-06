@@ -98,6 +98,7 @@ def build_reviewer_messages(
     review_item: dict[str, Any],
     retrieved_context: str,
     critic_feedback: str | None = None,
+    retry_issues: list[dict[str, Any]] | None = None,
 ) -> list[dict[str, str]]:
     """Build the messages list for a Reviewer call."""
     target = review_item.get("key", "unknown")
@@ -115,15 +116,20 @@ def build_reviewer_messages(
     ]
 
     if critic_feedback:
+        import json
+
         user_parts.extend(
             [
                 "",
                 "=== CRITIC FEEDBACK BEGIN ===",
                 critic_feedback,
                 "=== CRITIC FEEDBACK END ===",
+                "=== FAILED ISSUES BEGIN ===",
+                json.dumps(retry_issues or [], ensure_ascii=False),
+                "=== FAILED ISSUES END ===",
                 "",
                 "The issues above were returned by the Critic for revision.  "
-                "Re-examine them carefully and produce corrected issues.",
+                "Re-examine only those failed issues and produce corrected issues.",
             ]
         )
 

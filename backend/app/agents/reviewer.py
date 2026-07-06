@@ -6,6 +6,7 @@ import logging
 from typing import Any
 
 from app.agents.prompts.templates import build_reviewer_messages
+from app.agents.usage import build_failed_usage_update, build_usage_update
 from app.graph.state import CodeReviewState
 from app.llm.structured import StructuredLLM
 from app.llm.usage import LLMCallResult
@@ -28,6 +29,7 @@ class ReviewerAgent:
             review_item=item,
             retrieved_context=context,
             critic_feedback=state.critic_feedback,
+            retry_issues=state.retry_issues,
         )
 
         output: ReviewOutput
@@ -38,17 +40,26 @@ class ReviewerAgent:
             logger.error("reviewer_failed", extra={"error": str(exc)[:256]})
             return {
                 "current_issues": [],
-                "llm_call_count": state.llm_call_count + 1,
-                "input_tokens": state.input_tokens,
-                "output_tokens": state.output_tokens,
                 "current_item_warning": "reviewer_error",
                 "next_action": "review_decision",
+                **build_failed_usage_update(state, exc),
             }
 
         issues: list[dict[str, Any]] = []
         for issue in output.issues:
             d = issue.model_dump()
+            d["review_round"] = state.review_round
             issues.append(d)
+        if state.retry_issues:
+            allowed = {
+                (str(issue.get("relative_path", "")), str(issue.get("rule_id", "")))
+                for issue in state.retry_issues
+            }
+            issues = [
+                issue
+                for issue in issues
+                if (str(issue.get("relative_path", "")), str(issue.get("rule_id", ""))) in allowed
+            ]
 
         warning: str | None = None
         if not issues and not context:
@@ -56,9 +67,7 @@ class ReviewerAgent:
 
         return {
             "current_issues": issues,
-            "llm_call_count": state.llm_call_count + 1,
-            "input_tokens": state.input_tokens + result.input_tokens,
-            "output_tokens": state.output_tokens + result.output_tokens,
             "current_item_warning": warning,
             "next_action": "review_decision",
+            **build_usage_update(state, result),
         }

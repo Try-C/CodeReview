@@ -14,6 +14,8 @@ ROUTE_GUARD_RETRIEVE = "guard_retrieve"
 ROUTE_EVIDENCE_VERIFY = "evidence_verify"
 ROUTE_ADVANCE_ITEM = "advance_item"
 ROUTE_REVIEW_DECISION = "review_decision"
+ROUTE_PREPARE_REREVIEW = "prepare_rereview"
+ROUTE_FINALIZE_ITEM = "finalize_item"
 
 
 def route_guard_planner(state: dict[str, Any] | object) -> str:
@@ -30,6 +32,13 @@ def route_guard_retrieve(state: dict[str, Any] | object) -> str:
     if na == "report":
         return ROUTE_REPORT
     return "retrieve"
+
+
+def route_init_item(state: dict[str, Any] | object) -> str:
+    """InitItem → retrieve guard when an item exists, otherwise report."""
+    if _next_action(state) == "report":
+        return ROUTE_REPORT
+    return ROUTE_GUARD_RETRIEVE
 
 
 def route_guard_review(state: dict[str, Any] | object) -> str:
@@ -75,11 +84,11 @@ def route_guard_critic(state: dict[str, Any] | object) -> str:
 
 
 def route_critic_decision(state: dict[str, Any] | object) -> str:
-    """CriticDecision: failed & can re-review → GuardReview, else → AdvanceItem."""
+    """CriticDecision: failed → PrepareRereview, completed → FinalizeItem."""
     na = _next_action(state)
     if na == "prepare_rereview":
-        return ROUTE_GUARD_RETRIEVE
-    return ROUTE_ADVANCE_ITEM
+        return ROUTE_PREPARE_REREVIEW
+    return ROUTE_FINALIZE_ITEM
 
 
 def route_advance_item(state: dict[str, Any] | object) -> str:

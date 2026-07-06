@@ -12,8 +12,8 @@ from typing import TypeVar
 
 from pydantic import BaseModel
 
-from app.llm.client import FakeLLMClient, LLMClient
-from app.llm.usage import LLMCallResult
+from app.llm.client import LLMProvider
+from app.llm.usage import LLMCallResult, combine_call_results
 
 logger = logging.getLogger(__name__)
 
@@ -26,7 +26,7 @@ _MAX_JSON_REPAIR_RETRIES = 1
 class StructuredLLM:
     """Wraps an LLM client (real or fake) and returns validated Pydantic models."""
 
-    def __init__(self, client: LLMClient | FakeLLMClient) -> None:
+    def __init__(self, client: LLMProvider) -> None:
         self._client = client
 
     async def invoke(
@@ -70,11 +70,14 @@ class StructuredLLM:
         result2 = await self._client.chat(repair_messages)
         parsed = self._parse_with_repair(result2.content, response_model)
         if parsed is not None:
-            return parsed, result2
+            return parsed, combine_call_results(result, result2)
 
         raise StructuredOutputError(
-            f"Failed to parse {response_model.__name__} after "
-            f"{_MAX_JSON_REPAIR_RETRIES + 1} attempts"
+            (
+                f"Failed to parse {response_model.__name__} after "
+                f"{_MAX_JSON_REPAIR_RETRIES + 1} attempts"
+            ),
+            result=combine_call_results(result, result2),
         )
 
     @staticmethod
@@ -118,3 +121,7 @@ class StructuredLLM:
 
 class StructuredOutputError(RuntimeError):
     """Raised when structured output parsing fails after all retries."""
+
+    def __init__(self, message: str, *, result: LLMCallResult) -> None:
+        super().__init__(message)
+        self.result = result

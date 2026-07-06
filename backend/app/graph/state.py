@@ -47,6 +47,7 @@ class CodeReviewState(BaseModel):
     output_tokens: int = 0
     estimated_cost: Decimal | None = None
     cost_status: str = "unavailable"
+    last_usage: dict[str, Any] = Field(default_factory=dict)
 
     next_action: str = "init_item"
     current_item_warning: str | None = None

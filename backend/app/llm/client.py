@@ -9,7 +9,7 @@ from __future__ import annotations
 import logging
 import time
 from decimal import Decimal
-from typing import Any
+from typing import Any, Protocol
 
 import httpx
 
@@ -20,6 +20,34 @@ from app.llm.usage import (
 )
 
 logger = logging.getLogger(__name__)
+
+
+class LLMProvider(Protocol):
+    """Provider-neutral generation boundary used by structured callers."""
+
+    async def chat(
+        self,
+        messages: list[dict[str, str]],
+        *,
+        temperature: float | None = None,
+        max_tokens: int | None = None,
+    ) -> LLMCallResult:
+        """Return generated content together with immutable usage metadata."""
+
+
+class UnavailableLLMProvider:
+    """Fail with a stable error when generation credentials are not configured."""
+
+    async def chat(
+        self,
+        messages: list[dict[str, str]],
+        *,
+        temperature: float | None = None,
+        max_tokens: int | None = None,
+    ) -> LLMCallResult:
+        del messages, temperature, max_tokens
+        raise LLMClientError("LLM_PROVIDER_UNAVAILABLE")
+
 
 # ── Production client ────────────────────────────────────────────────────────
 
@@ -88,9 +116,8 @@ class LLMClient:
         elapsed_ms = int((time.monotonic() - started) * 1000)
 
         if response.status_code != 200:
-            text = response.text[:512]
-            logger.error("llm_api_error status=%d body=%s", response.status_code, text)
-            raise LLMClientError(f"DeepSeek API returned {response.status_code}: {text}")
+            logger.error("llm_api_error status=%d", response.status_code)
+            raise LLMClientError(f"DeepSeek API returned status {response.status_code}")
 
         body = response.json()
         choice = body["choices"][0]
@@ -155,6 +182,7 @@ class FakeLLMClient:
     ) -> LLMCallResult:
         return LLMCallResult(
             content=self._response,
+            provider="fake",
             model=self._model,
             input_tokens=self._input_tokens,
             output_tokens=self._output_tokens,

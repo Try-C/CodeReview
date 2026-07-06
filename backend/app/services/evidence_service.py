@@ -13,7 +13,8 @@ from __future__ import annotations
 
 import hashlib
 import logging
-from pathlib import Path
+import stat
+from pathlib import Path, PurePosixPath
 from typing import Any
 
 logger = logging.getLogger(__name__)
@@ -38,7 +39,8 @@ class EvidenceService:
         """
         root = Path(project_root).resolve()
         rel = issue.get("relative_path", "")
-        file_cache = file_cache or {}
+        if file_cache is None:
+            file_cache = {}
         checks: dict[str, bool] = {}
 
         # 1. Path check.
@@ -69,9 +71,21 @@ class EvidenceService:
         if not relative_path:
             return False
         try:
-            target = (root / relative_path).resolve()
+            raw_target = root / relative_path
+            current = root
+            for component in Path(relative_path).parts:
+                current = current / component
+                attributes = getattr(
+                    current.stat(follow_symlinks=False),
+                    "st_file_attributes",
+                    0,
+                )
+                reparse_flag = getattr(stat, "FILE_ATTRIBUTE_REPARSE_POINT", 0x400)
+                if current.is_symlink() or attributes & reparse_flag:
+                    return False
+            target = raw_target.resolve()
             target.relative_to(root)
-        except (ValueError, OSError):
+        except (AttributeError, ValueError, OSError):
             return False
         return target.is_file()
 
@@ -116,9 +130,10 @@ class EvidenceService:
             return False
         # Extract the declared line range (0-indexed).
         snippet = "\n".join(lines[start - 1 : end])
-        # Normalise newlines and strip whitespace for comparison.
-        norm_evidence = " ".join(evidence.replace("\r\n", "\n").split())
-        norm_snippet = " ".join(snippet.replace("\r\n", "\n").split())
+        # Only normalise line endings and outer whitespace. Internal whitespace
+        # remains exact so deterministic evidence cannot drift into fuzzy matching.
+        norm_evidence = evidence.replace("\r\n", "\n").replace("\r", "\n").strip()
+        norm_snippet = snippet.replace("\r\n", "\n").replace("\r", "\n").strip()
         return norm_evidence in norm_snippet
 
     @staticmethod
@@ -129,13 +144,12 @@ class EvidenceService:
     ) -> bool:
         """Verify every source_chunk_id exists and belongs to *project_id*.
 
-        If *session* is None (test / no DB available) the check is skipped
-        and returns True so that the other three checks still gate the issue.
+        A missing database session fails closed: ownership cannot be established.
         """
         if not source_chunk_ids:
             return False
         if session is None:
-            return True  # no DB → defer to other checks
+            return False
         try:
             from sqlalchemy import select
 
@@ -159,13 +173,13 @@ class EvidenceService:
     @staticmethod
     def _build_fingerprint(issue: dict[str, Any]) -> str:
         """SHA-256 of (normalised_path + start_line + end_line + rule_id + evidence_hash)."""
-        path = str(Path(str(issue.get("relative_path", ""))))
+        path = PurePosixPath(str(issue.get("relative_path", "")).replace("\\", "/")).as_posix()
         start = str(issue.get("start_line", 0))
         end = str(issue.get("end_line", 0))
         rule = str(issue.get("rule_id", ""))
         evidence = str(issue.get("evidence", ""))
         evidence_hash = hashlib.sha256(evidence.encode()).hexdigest()
-        raw = path + start + end + rule + evidence_hash
+        raw = "\0".join((path, start, end, rule, evidence_hash))
         return hashlib.sha256(raw.encode()).hexdigest()
 
     # ── File I/O ─────────────────────────────────────────────────────────

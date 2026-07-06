@@ -185,17 +185,19 @@ class TestStructuredLLM:
                 ).chat(messages, **kwargs)
 
         sllm = StructuredLLM(MultiResponseFake(response_text=""))
-        model, _ = await sllm.invoke([], _TestModel)
+        model, result = await sllm.invoke([], _TestModel)
         assert model.value == 1
         assert call_index[0] == 2  # two calls made
+        assert result.call_count == 2
 
     @pytest.mark.asyncio
     async def test_raises_after_repair_fails(self) -> None:
         """Both attempts fail → StructuredOutputError."""
         fake = FakeLLMClient(response_text="not json at all")
         sllm = StructuredLLM(fake)
-        with pytest.raises(StructuredOutputError):
+        with pytest.raises(StructuredOutputError) as captured:
             await sllm.invoke([], _TestModel)
+        assert captured.value.result.call_count == 2
 
     def test_extract_json_plain_object(self) -> None:
         text = 'some prefix {"a": 1, "b": 2} suffix'
@@ -217,6 +219,11 @@ class TestStructuredLLM:
 
 
 class TestEvidenceService:
+    class _OwnedChunkSession:
+        async def scalars(self, statement: object) -> list[int]:
+            del statement
+            return [1]
+
     @pytest.fixture
     def service(self) -> EvidenceService:
         return EvidenceService()
@@ -248,8 +255,54 @@ class TestEvidenceService:
             issue=issue,
             project_id=1,
             project_root=tmp_project,
+            session=self._OwnedChunkSession(),
         )
         assert result["evidence_status"] == "passed"
+
+    @pytest.mark.asyncio
+    async def test_missing_session_fails_chunk_ownership(
+        self, service: EvidenceService, tmp_project: str
+    ) -> None:
+        issue = {
+            "relative_path": "src/Test.java",
+            "start_line": 3,
+            "end_line": 3,
+            "evidence": 'String sql = "SELECT * FROM users WHERE id = \'" + uid + "\'";',
+            "source_chunk_ids": [1],
+            "rule_id": "JAVA-SQL-001",
+        }
+
+        result = await service.verify_one(
+            issue=issue,
+            project_id=1,
+            project_root=tmp_project,
+        )
+
+        assert result["evidence_status"] == "failed"
+        assert result["evidence_checks"]["chunks"] is False
+
+    @pytest.mark.asyncio
+    async def test_internal_whitespace_must_match_exactly(
+        self, service: EvidenceService, tmp_project: str
+    ) -> None:
+        issue = {
+            "relative_path": "src/Test.java",
+            "start_line": 3,
+            "end_line": 3,
+            "evidence": 'String  sql = "SELECT * FROM users WHERE id = \'" + uid + "\'";',
+            "source_chunk_ids": [1],
+            "rule_id": "JAVA-SQL-001",
+        }
+
+        result = await service.verify_one(
+            issue=issue,
+            project_id=1,
+            project_root=tmp_project,
+            session=self._OwnedChunkSession(),
+        )
+
+        assert result["evidence_status"] == "failed"
+        assert result["evidence_checks"]["evidence"] is False
 
     @pytest.mark.asyncio
     async def test_bad_path_fails(self, service: EvidenceService, tmp_project: str) -> None:

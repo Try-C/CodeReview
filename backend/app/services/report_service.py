@@ -13,7 +13,7 @@ from datetime import UTC, datetime
 from decimal import Decimal
 from typing import Any
 
-from app.llm.client import FakeLLMClient, LLMClient
+from app.llm.client import LLMProvider
 
 logger = logging.getLogger(__name__)
 
@@ -25,7 +25,7 @@ class ReportService:
     Pass a FakeLLMClient to skip LLM calls (tests / cost-unaware envs).
     """
 
-    def __init__(self, llm: LLMClient | FakeLLMClient | None = None) -> None:
+    def __init__(self, llm: LLMProvider | None = None) -> None:
         self._llm = llm
 
     # ── Public API ────────────────────────────────────────────────────────

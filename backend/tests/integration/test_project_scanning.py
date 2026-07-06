@@ -145,7 +145,7 @@ async def _scan_scenario(tmp_path: Path) -> None:
         "Review worker started",
         "Project scan started",
         "Project scan completed",
-        "Review task infrastructure pipeline completed",
+        "Review task completed",
     ]
     assert events[2].metadata_ == loaded_project.scan_stats
 

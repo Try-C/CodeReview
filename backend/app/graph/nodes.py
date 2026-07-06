@@ -13,6 +13,7 @@ from __future__ import annotations
 import logging
 from collections.abc import Awaitable, Callable
 from dataclasses import dataclass
+from pathlib import PurePosixPath
 from typing import Any
 
 from app.core.config import get_settings
@@ -38,11 +39,15 @@ class BudgetGuardNode:
     """
 
     proceed_action: str
+    cancel_check: Callable[[int], Awaitable[bool]] | None = None
 
-    def __call__(self, state: CodeReviewState) -> dict[str, Any]:
+    async def __call__(self, state: CodeReviewState) -> dict[str, Any]:
         settings = get_settings()
+        cancel_requested = state.cancel_requested
+        if self.cancel_check is not None:
+            cancel_requested = cancel_requested or await self.cancel_check(state.task_id)
         checks: list[tuple[bool, str]] = [
-            (state.cancel_requested, "cancel_requested"),
+            (cancel_requested, "cancel_requested"),
             (state.stop_reason is not None, "stop_reason_set"),
             (state.llm_call_count >= settings.max_llm_calls, "llm_call_limit_exceeded"),
             (
@@ -87,11 +92,16 @@ class InitItemNode:
             "current_review_item": item,
             "current_issues": [],
             "retry_issues": [],
+            "critic_decisions": [],
             "retrieved_chunks": [],
             "retrieved_context": "",
             "retrieval_query": "",
+            "retrieval_target_paths": list(item.get("target_paths", [])),
+            "retrieval_top_k": int(item.get("top_k", 10)),
             "retrieval_retry_count": 0,
+            "last_retrieved_chunk_ids": [],
             "critic_feedback": None,
+            "review_round": 1,
             "current_item_warning": None,
             "next_action": "guard_retrieve",
         }
@@ -112,8 +122,6 @@ class RetrieveNode:
     async def __call__(self, state: CodeReviewState) -> dict[str, Any]:
         item = state.current_review_item or {}
         query = state.retrieval_query or " ".join(item.get("keywords", []))
-        # paths and top_k from state are currently passed through retriever config.
-
         try:
             result = await self.retrieve_fn(
                 task_id=state.task_id,
@@ -122,6 +130,8 @@ class RetrieveNode:
                 languages=("java", "python"),
                 review_item_key=item.get("key", ""),
                 retrieval_round=state.retrieval_retry_count + 1,
+                target_paths=tuple(state.retrieval_target_paths),
+                top_k=state.retrieval_top_k,
             )
         except Exception as exc:
             logger.warning("retrieve_node_failed", extra={"error": str(exc)[:128]})
@@ -134,10 +144,16 @@ class RetrieveNode:
 
         context = result.get("context", "") if isinstance(result, dict) else ""
         chunks = result.get("chunks", []) if isinstance(result, dict) else []
+        chunk_ids = [
+            int(chunk["id"])
+            for chunk in chunks
+            if isinstance(chunk, dict) and isinstance(chunk.get("id"), int)
+        ]
 
         return {
             "retrieved_context": str(context),
             "retrieved_chunks": list(chunks),
+            "last_retrieved_chunk_ids": chunk_ids,
             "next_action": "guard_review",
         }
 
@@ -158,11 +174,21 @@ class ReviewDecisionNode:
                 return {"next_action": "rewrite_query"}
             return {
                 "current_item_warning": "insufficient_context_exhausted",
+                "rejected_issues": _append_unique(
+                    state.rejected_issues,
+                    state.retry_issues,
+                ),
                 "next_action": "advance_item",
             }
 
         if not issues:
-            return {"next_action": "advance_item"}
+            return {
+                "rejected_issues": _append_unique(
+                    state.rejected_issues,
+                    state.retry_issues,
+                ),
+                "next_action": "advance_item",
+            }
 
         return {"next_action": "evidence_verify"}
 
@@ -195,10 +221,16 @@ class RewriteQueryNode:
             }
 
         # attempt 1: expand paths + neighbours
-        paths: list[str] = list(item.get("target_paths", []))
+        paths = {str(path).rstrip("/") for path in item.get("target_paths", []) if path}
+        for path in tuple(paths):
+            parent = PurePosixPath(path).parent.as_posix()
+            if parent not in ("", "."):
+                paths.add(parent)
+        settings = get_settings()
         return {
             "retrieval_query": state.retrieval_query,
-            "retrieval_target_paths": paths,
+            "retrieval_target_paths": sorted(paths),
+            "retrieval_top_k": min(state.retrieval_top_k * 2, settings.max_top_k),
             "retrieval_retry_count": attempt + 1,
             "current_item_warning": None,
             "next_action": "guard_retrieve",
@@ -236,8 +268,12 @@ class EvidenceVerifyNode:
 
         # Split: passed vs failed.
         passed = [i for i in verified if i.get("evidence_status") == "passed"]
+        failed = [i for i in verified if i.get("evidence_status") != "passed"]
 
-        update: dict[str, Any] = {"current_issues": verified}
+        update: dict[str, Any] = {
+            "current_issues": verified,
+            "rejected_issues": _append_unique(state.rejected_issues, failed),
+        }
         if not passed:
             update["next_action"] = "advance_item"
         else:
@@ -275,11 +311,11 @@ class CriticDecisionNode:
         for issue in state.current_issues:
             fp = issue.get("fingerprint", "")
             dec = decisions.get(fp, {})
-            decision = dec.get("decision", "uncertain")
+            decision = dec.get("decision", "fail")
 
             merged = dict(issue)
             merged["critic_decision"] = decision
-            merged["critic_reason"] = dec.get("reason", "")
+            merged["critic_reason"] = dec.get("reason", "missing_critic_decision")
             if dec.get("adjusted_risk_level"):
                 merged["risk_level"] = dec["adjusted_risk_level"]
 

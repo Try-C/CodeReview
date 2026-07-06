@@ -6,6 +6,7 @@ import logging
 from typing import Any
 
 from app.agents.prompts.templates import build_critic_messages
+from app.agents.usage import build_failed_usage_update, build_usage_update
 from app.graph.state import CodeReviewState
 from app.llm.structured import StructuredLLM
 from app.llm.usage import LLMCallResult
@@ -40,16 +41,15 @@ class CriticAgent:
             logger.error("critic_failed", extra={"error": str(exc)[:256]})
             return {
                 "critic_decisions": [],
-                "llm_call_count": state.llm_call_count + 1,
+                "current_item_warning": "critic_error",
                 "next_action": "critic_decision",
+                **build_failed_usage_update(state, exc),
             }
 
         decisions = [d.model_dump() for d in output.decisions]
 
         return {
             "critic_decisions": decisions,
-            "llm_call_count": state.llm_call_count + 1,
-            "input_tokens": state.input_tokens + result.input_tokens,
-            "output_tokens": state.output_tokens + result.output_tokens,
             "next_action": "critic_decision",
+            **build_usage_update(state, result),
         }

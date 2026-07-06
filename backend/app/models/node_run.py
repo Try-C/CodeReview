@@ -6,6 +6,7 @@ same logical call do not double-count costs.
 """
 
 from datetime import datetime
+from decimal import Decimal
 from typing import Any
 
 from sqlalchemy import (
@@ -59,14 +60,14 @@ class NodeRun(Base):
 
     input_tokens: Mapped[int] = mapped_column(nullable=False, default=0)
     output_tokens: Mapped[int] = mapped_column(nullable=False, default=0)
-    input_price_per_million: Mapped[float | None] = mapped_column(Numeric(12, 6))
-    output_price_per_million: Mapped[float | None] = mapped_column(Numeric(12, 6))
+    input_price_per_million: Mapped[Decimal | None] = mapped_column(Numeric(12, 6))
+    output_price_per_million: Mapped[Decimal | None] = mapped_column(Numeric(12, 6))
     pricing_currency: Mapped[str | None] = mapped_column(String(8))
     pricing_version: Mapped[str | None] = mapped_column(String(64))
     cost_status: Mapped[str] = mapped_column(
         String(16), nullable=False, default="unavailable"
     )  # available / unavailable
-    estimated_cost: Mapped[float | None] = mapped_column(Numeric(12, 6))
+    estimated_cost: Mapped[Decimal | None] = mapped_column(Numeric(12, 6))
 
     error_code: Mapped[str | None] = mapped_column(String(64))
     error_message: Mapped[str | None] = mapped_column(Text)

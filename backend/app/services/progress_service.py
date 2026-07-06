@@ -2,6 +2,7 @@
 
 import asyncio
 import logging
+from collections.abc import Awaitable, Callable
 from datetime import UTC, datetime, timedelta
 
 from sqlalchemy import delete, select
@@ -24,10 +25,12 @@ class ProgressService:
         sessions: async_sessionmaker[AsyncSession],
         event_bus: TaskEventBus | None = None,
         scanner: FileScanner | None = None,
+        workflow: Callable[[int], Awaitable[None]] | None = None,
     ) -> None:
         self._sessions = sessions
         self._event_bus = event_bus
         self._scanner = scanner
+        self._workflow = workflow
 
     async def run_task_lifecycle(self, task_id: int) -> None:
         """Exercise the outer task boundary; later modules insert stages here."""
@@ -37,6 +40,8 @@ class ProgressService:
                 return
             if self._scanner is not None:
                 await self._scan(task_id)
+            if self._workflow is not None:
+                await self._workflow(task_id)
             await self._finish(task_id)
         except Exception:
             logger.exception("review_task_failed", extra={"task_id": task_id})
@@ -209,9 +214,13 @@ class ProgressService:
             if task.cancel_requested or task.status == "cancel_requested":
                 status = "cancelled"
                 message = "Review task cancelled"
+            elif task.fallback_reason:
+                status = "partial_success"
+                message = "Review task completed with partial results"
+                task.progress = 100
             else:
                 status = "success"
-                message = "Review task infrastructure pipeline completed"
+                message = "Review task completed"
                 task.progress = 100
             task.status = status
             task.current_stage = status

@@ -19,6 +19,7 @@ Covers every required scenario:
 from __future__ import annotations
 
 import json
+from collections.abc import AsyncIterator
 from decimal import Decimal
 from typing import Any
 
@@ -106,38 +107,48 @@ def _build_fake_llm(response_model: Any) -> StructuredLLM:
 
 
 class TestBudgetGuard:
-    def test_proceed_when_under_budget(self) -> None:
+    async def test_proceed_when_under_budget(self) -> None:
         guard = BudgetGuardNode("planner")
         state = _make_state(llm_call_count=5, input_tokens=1000, output_tokens=500)
-        result = guard(state)
+        result = await guard(state)
         assert result["next_action"] == "planner"
 
-    def test_blocks_on_cancel(self) -> None:
+    async def test_blocks_on_cancel(self) -> None:
         guard = BudgetGuardNode("review")
         state = _make_state(cancel_requested=True)
-        result = guard(state)
+        result = await guard(state)
         assert result["next_action"] == "report"
         assert "cancel_requested" in result.get("fallback_reason", "")
 
-    def test_blocks_on_stop_reason(self) -> None:
+    async def test_blocks_on_stop_reason(self) -> None:
         guard = BudgetGuardNode("critic")
         state = _make_state(stop_reason="previous_error")
-        result = guard(state)
+        result = await guard(state)
         assert result["next_action"] == "report"
 
-    def test_blocks_on_llm_call_limit(self) -> None:
+    async def test_blocks_on_llm_call_limit(self) -> None:
         guard = BudgetGuardNode("planner")
         state = _make_state(llm_call_count=30, input_tokens=0, output_tokens=0)
-        result = guard(state)
+        result = await guard(state)
         assert result["next_action"] == "report"
         assert "llm_call_limit" in result.get("fallback_reason", "")
 
-    def test_blocks_on_token_budget(self) -> None:
+    async def test_blocks_on_token_budget(self) -> None:
         guard = BudgetGuardNode("review")
         state = _make_state(llm_call_count=0, input_tokens=50000, output_tokens=51000)
-        result = guard(state)
+        result = await guard(state)
         assert result["next_action"] == "report"
         assert "token_budget" in result.get("fallback_reason", "")
+
+    async def test_checks_live_cancellation(self) -> None:
+        async def cancelled(task_id: int) -> bool:
+            assert task_id == 1
+            return True
+
+        guard = BudgetGuardNode("review", cancelled)
+        result = await guard(_make_state(cancel_requested=False))
+        assert result["next_action"] == "report"
+        assert result["fallback_reason"] == "cancel_requested"
 
 
 # ── CriticDecision tests (§12.7) ────────────────────────────────────────────
@@ -194,6 +205,22 @@ class TestCriticDecision:
         assert len(result["rejected_issues"]) == 1
         assert len(result["retry_issues"]) == 0
 
+    def test_missing_critic_decision_fails_closed(self) -> None:
+        node = CriticDecisionNode()
+        state = _make_state(
+            current_issues=[_make_issue(fingerprint="fp-1")],
+            critic_decisions=[],
+            review_round=2,
+            max_review_rounds=2,
+        )
+
+        result = node(state)
+
+        assert result["verified_issues"] == []
+        assert len(result["rejected_issues"]) == 1
+        assert result["rejected_issues"][0]["critic_decision"] == "fail"
+        assert result["rejected_issues"][0]["critic_reason"] == "missing_critic_decision"
+
     def test_dedup_by_fingerprint(self) -> None:
         node = CriticDecisionNode()
         state = _make_state(
@@ -230,10 +257,20 @@ class TestRoutes:
         assert route_review_decision({"next_action": "evidence_verify"}) == ROUTE_EVIDENCE_VERIFY
 
     def test_critic_decision_routing(self) -> None:
-        from app.graph.routes import ROUTE_ADVANCE_ITEM, ROUTE_GUARD_RETRIEVE, route_critic_decision
+        from app.graph.routes import (
+            ROUTE_FINALIZE_ITEM,
+            ROUTE_PREPARE_REREVIEW,
+            route_critic_decision,
+        )
 
-        assert route_critic_decision({"next_action": "prepare_rereview"}) == ROUTE_GUARD_RETRIEVE
-        assert route_critic_decision({"next_action": "finalize_item"}) == ROUTE_ADVANCE_ITEM
+        assert route_critic_decision({"next_action": "prepare_rereview"}) == ROUTE_PREPARE_REREVIEW
+        assert route_critic_decision({"next_action": "finalize_item"}) == ROUTE_FINALIZE_ITEM
+
+    def test_init_item_routing(self) -> None:
+        from app.graph.routes import ROUTE_GUARD_RETRIEVE, ROUTE_REPORT, route_init_item
+
+        assert route_init_item({"next_action": "guard_retrieve"}) == ROUTE_GUARD_RETRIEVE
+        assert route_init_item({"next_action": "report"}) == ROUTE_REPORT
 
     def test_advance_item_routing(self) -> None:
         from app.graph.routes import ROUTE_REPORT, route_advance_item
@@ -323,6 +360,40 @@ class TestReviewerAgent:
         result = await agent(state)
         assert result["current_item_warning"] == "insufficient_context"
 
+    @pytest.mark.asyncio
+    async def test_rereview_emits_only_failed_issue_slots(self) -> None:
+        allowed = IssueCandidate(
+            relative_path="src/a.py",
+            start_line=1,
+            end_line=1,
+            evidence="bad",
+            source_chunk_ids=[1],
+            category="bug",
+            issue_type="test",
+            risk_level="Low",
+            rule_id="T-1",
+            title="T",
+            description="D",
+            reason="R",
+            suggestion="S",
+            confidence=0.5,
+        )
+        extra = allowed.model_copy(update={"relative_path": "src/other.py", "rule_id": "T-2"})
+        agent = ReviewerAgent(_build_fake_llm(ReviewOutput(issues=[allowed, extra])))
+        state = _make_state(
+            current_review_item=_make_plan_item(),
+            retrieved_context="code",
+            review_round=2,
+            retry_issues=[_make_issue(relative_path="src/a.py", rule_id="T-1")],
+            critic_feedback="retry",
+        )
+
+        result = await agent(state)
+
+        assert len(result["current_issues"]) == 1
+        assert result["current_issues"][0]["relative_path"] == "src/a.py"
+        assert result["current_issues"][0]["review_round"] == 2
+
 
 class TestCriticAgent:
     @pytest.mark.asyncio
@@ -359,6 +430,9 @@ class TestInitItem:
         result = node(state)
         assert result["current_review_item"]["key"] == "item-1"
         assert result["next_action"] == "guard_retrieve"
+        assert result["review_round"] == 1
+        assert result["retrieval_target_paths"] == ["src/"]
+        assert result["retrieval_top_k"] == 10
 
     def test_empty_plan_goes_to_report(self) -> None:
         from app.graph.nodes import InitItemNode
@@ -407,6 +481,48 @@ class TestReviewDecision:
         result = node(state)
         assert result["next_action"] == "advance_item"
         assert "exhausted" in result.get("current_item_warning", "")
+
+
+class TestEvidenceVerify:
+    async def test_failed_evidence_is_retained_for_trace(self) -> None:
+        from app.graph.nodes import EvidenceVerifyNode
+
+        async def reject(**kwargs: Any) -> dict[str, Any]:
+            return {
+                **kwargs["issue"],
+                "fingerprint": "failed-fingerprint",
+                "evidence_status": "failed",
+            }
+
+        result = await EvidenceVerifyNode(reject)(
+            _make_state(current_issues=[_make_issue(fingerprint="candidate")])
+        )
+
+        assert result["next_action"] == "advance_item"
+        assert result["current_issues"][0]["evidence_status"] == "failed"
+        assert result["rejected_issues"][0]["fingerprint"] == "failed-fingerprint"
+
+
+class TestRewriteQuery:
+    def test_second_retry_expands_parent_path_and_top_k(self) -> None:
+        from app.graph.nodes import RewriteQueryNode
+
+        result = RewriteQueryNode()(
+            _make_state(
+                current_review_item=_make_plan_item(
+                    target_paths=["src/auth/service.py"],
+                    top_k=10,
+                ),
+                retrieval_query="auth",
+                retrieval_target_paths=["src/auth/service.py"],
+                retrieval_top_k=10,
+                retrieval_retry_count=1,
+            )
+        )
+
+        assert result["retrieval_target_paths"] == ["src/auth", "src/auth/service.py"]
+        assert result["retrieval_top_k"] == 20
+        assert result["retrieval_retry_count"] == 2
 
 
 class TestAdvanceItem:
@@ -459,11 +575,14 @@ class TestGraphBuilder:
 
     async def test_invoke_with_empty_plan_terminates(self) -> None:
         """Empty review_plan → graph terminates at Report."""
+        reviewer_calls = 0
 
         async def _fake_planner(state: CodeReviewState) -> dict[str, Any]:
             return {"review_plan": [], "next_action": "init_item"}
 
         async def _fake_reviewer(state: CodeReviewState) -> dict[str, Any]:
+            nonlocal reviewer_calls
+            reviewer_calls += 1
             return {"current_issues": [], "next_action": "review_decision"}
 
         async def _fake_critic(state: CodeReviewState) -> dict[str, Any]:
@@ -486,6 +605,66 @@ class TestGraphBuilder:
             },
         )
         assert result["next_action"] == "done"
+        assert reviewer_calls == 0
+
+    async def test_rereview_reuses_context_without_retrieval(self) -> None:
+        """Critic failures go through PrepareRereview and reuse existing context."""
+        retrieval_calls = 0
+        review_calls = 0
+
+        async def _fake_planner(state: CodeReviewState) -> dict[str, Any]:
+            return {"review_plan": [_make_plan_item()], "next_action": "init_item"}
+
+        async def _fake_retrieve(**kwargs: Any) -> dict[str, Any]:
+            nonlocal retrieval_calls
+            retrieval_calls += 1
+            return {
+                "context": "code",
+                "chunks": [{"id": 1}],
+            }
+
+        async def _fake_reviewer(state: CodeReviewState) -> dict[str, Any]:
+            nonlocal review_calls
+            review_calls += 1
+            return {
+                "current_issues": [_make_issue(fingerprint="fp-1")],
+                "next_action": "review_decision",
+            }
+
+        async def _fake_evidence(**kwargs: Any) -> dict[str, Any]:
+            return {**kwargs["issue"], "evidence_status": "passed"}
+
+        async def _fake_critic(state: CodeReviewState) -> dict[str, Any]:
+            decision = "fail" if state.review_round == 1 else "pass"
+            return {
+                "critic_decisions": [
+                    {"fingerprint": "fp-1", "decision": decision, "reason": decision}
+                ],
+                "next_action": "critic_decision",
+            }
+
+        graph = build_review_graph(
+            planner_node=_fake_planner,
+            reviewer_node=_fake_reviewer,
+            critic_node=_fake_critic,
+            retrieve_fn=_fake_retrieve,
+            evidence_verify_fn=_fake_evidence,
+        )
+        result = await invoke_graph(
+            graph,
+            {
+                "task_id": 1,
+                "project_id": 1,
+                "user_id": 1,
+                "project_root": "/tmp/test",
+                "file_summary": {},
+            },
+        )
+
+        assert result["next_action"] == "done"
+        assert retrieval_calls == 1
+        assert review_calls == 2
+        assert len(result["verified_issues"]) == 1
 
     async def test_graph_recursion_limit_caught(self) -> None:
         """Recursion limit exception returns partial_success."""
@@ -523,6 +702,38 @@ class TestGraphBuilder:
             },
             recursion_limit=2,
         )
+        assert result["stop_reason"] == "graph_recursion_limit_exceeded"
+
+    async def test_recursion_limit_preserves_latest_streamed_state(self) -> None:
+        from langgraph.errors import GraphRecursionError
+
+        class _PartialGraph:
+            async def astream(
+                self,
+                initial_state: dict[str, Any],
+                **kwargs: Any,
+            ) -> AsyncIterator[dict[str, Any]]:
+                del kwargs
+                yield {
+                    **initial_state,
+                    "verified_issues": [_make_issue()],
+                    "llm_call_count": 3,
+                }
+                raise GraphRecursionError
+
+        result = await invoke_graph(
+            _PartialGraph(),
+            {
+                "task_id": 1,
+                "project_id": 1,
+                "user_id": 1,
+                "project_root": "/tmp/test",
+            },
+            recursion_limit=2,
+        )
+
+        assert len(result["verified_issues"]) == 1
+        assert result["llm_call_count"] == 3
         assert result["stop_reason"] == "graph_recursion_limit_exceeded"
 
 

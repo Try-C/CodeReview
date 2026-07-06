@@ -27,6 +27,7 @@ class LLMCallResult(BaseModel):
     """The complete result of one LLM invocation including usage and cost."""
 
     content: str
+    provider: str = "deepseek"
     model: str
     input_tokens: int
     output_tokens: int
@@ -34,6 +35,30 @@ class LLMCallResult(BaseModel):
     estimated_cost: Decimal | None
     latency_ms: int
     pricing: PricingSnapshot
+    call_count: int = 1
+
+
+def combine_call_results(
+    first: LLMCallResult,
+    final: LLMCallResult,
+) -> LLMCallResult:
+    """Aggregate a structured-output repair call without losing paid usage."""
+    available = first.cost_status == final.cost_status == "available"
+    estimated_cost = (
+        (first.estimated_cost or Decimal("0")) + (final.estimated_cost or Decimal("0"))
+        if available
+        else None
+    )
+    return final.model_copy(
+        update={
+            "input_tokens": first.input_tokens + final.input_tokens,
+            "output_tokens": first.output_tokens + final.output_tokens,
+            "cost_status": "available" if available else "unavailable",
+            "estimated_cost": estimated_cost,
+            "latency_ms": first.latency_ms + final.latency_ms,
+            "call_count": first.call_count + final.call_count,
+        }
+    )
 
 
 def calculate_estimated_cost(

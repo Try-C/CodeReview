@@ -6,6 +6,7 @@ from app.indexing.provider import (
     DashScopeEmbeddingProvider,
     EmbeddingProvider,
     EmbeddingProviderError,
+    UnavailableEmbeddingProvider,
 )
 from app.indexing.service import IndexBuildResult, IndexingService
 from app.indexing.text import build_search_text, split_identifier
@@ -19,6 +20,7 @@ __all__ = [
     "IndexingService",
     "PgVectorStartupCheck",
     "PgVectorValidator",
+    "UnavailableEmbeddingProvider",
     "build_search_text",
     "recall_at_k",
     "split_identifier",
