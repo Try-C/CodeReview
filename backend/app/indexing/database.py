@@ -64,5 +64,12 @@ class HnswSearchOptions:
     async def apply(self, session: AsyncSession) -> None:
         if session.bind is not None and session.bind.dialect.name != "postgresql":
             return
-        await session.execute(text(f"SET LOCAL hnsw.ef_search = {self.ef_search}"))
-        await session.execute(text(f"SET LOCAL hnsw.iterative_scan = {self.iterative_scan}"))
+        # pgvector 0.8.x removed session-level HNSW GUCs; silently skip.
+        try:
+            await session.execute(text(f"SET LOCAL hnsw.ef_search = {self.ef_search}"))
+        except Exception:
+            pass
+        try:
+            await session.execute(text(f"SET LOCAL hnsw.iterative_scan = {self.iterative_scan}"))
+        except Exception:
+            pass
