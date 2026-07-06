@@ -16,6 +16,9 @@ class ProjectFileResponse(BaseModel):
     language: str | None
     size: int = Field(ge=0)
     line_count: int = Field(ge=0)
+    scan_status: str
+    scan_priority: str | None
+    scan_reason: str | None
     parse_status: str
     parse_strategy: str | None
     parse_error: str | None
@@ -32,6 +35,7 @@ class ProjectResponse(BaseModel):
     project_name: str
     main_language: str | None
     language_stats: dict[str, int]
+    scan_stats: dict[str, object]
     total_files: int = Field(ge=0)
     total_lines: int = Field(ge=0)
     total_size: int = Field(ge=0)

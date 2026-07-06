@@ -5,7 +5,9 @@ import asyncio
 from app.core.config import get_settings
 from app.core.database import DatabaseDependency
 from app.core.redis import RedisDependency
+from app.scanner import FileFilter, FileScanner, PriorityClassifier
 from app.services.progress_service import ProgressService
+from app.storage.local import LocalProjectStorage
 from app.tasks.celery_app import celery_app
 
 
@@ -28,8 +30,18 @@ async def _run_review_pipeline(task_id: int) -> None:
         settings.redis_url.get_secret_value(),
         stream_max_length=settings.task_event_stream_max_length,
     )
+    storage = LocalProjectStorage(settings.upload_root)
+    scanner = FileScanner(
+        storage,
+        FileFilter(settings),
+        PriorityClassifier(),
+    )
     try:
-        await ProgressService(database.session_factory, redis).run_task_lifecycle(task_id)
+        await ProgressService(
+            database.session_factory,
+            redis,
+            scanner,
+        ).run_task_lifecycle(task_id)
     finally:
         await redis.close()
         await database.close()

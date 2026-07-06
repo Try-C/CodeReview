@@ -37,5 +37,7 @@ PostgreSQL and Redis and returns `503 SERVICE_NOT_READY` when either is
 unavailable. Authenticated project endpoints always scope access by the current
 user. Uploads use a server-validated manifest, stream Java and Python files into
 an isolated `UPLOAD_ROOT`, record skipped and failed coverage, and only create a
-project after all accepted manifest entries have outcomes. Docker-based local
-orchestration is intentionally not included.
+project after all accepted manifest entries have outcomes. Review workers scan
+only server-owned project roots, persist file priority and filter outcomes, and
+publish language and coverage statistics as durable progress events.
+Docker-based local orchestration is intentionally not included.

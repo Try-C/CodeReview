@@ -48,6 +48,14 @@ def test_initial_migration_upgrades_and_downgrades(tmp_path: Path) -> None:
         "task_id",
         "metadata",
     }
+    assert {column["name"] for column in inspector.get_columns("projects")} >= {
+        "scan_stats",
+    }
+    assert {column["name"] for column in inspector.get_columns("project_files")} >= {
+        "scan_status",
+        "scan_priority",
+        "scan_reason",
+    }
     assert {index["name"] for index in inspector.get_indexes("projects")} == {"ix_projects_user_id"}
     assert {constraint["name"] for constraint in inspector.get_check_constraints("projects")} == {
         "ck_projects_total_files_nonnegative",

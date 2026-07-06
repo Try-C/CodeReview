@@ -53,6 +53,12 @@ class Project(TimestampMixin, Base):
         default=dict,
         server_default=text("'{}'"),
     )
+    scan_stats: Mapped[dict[str, object]] = mapped_column(
+        JSON_OBJECT,
+        nullable=False,
+        default=dict,
+        server_default=text("'{}'"),
+    )
     total_files: Mapped[int] = mapped_column(nullable=False, default=0, server_default="0")
     total_lines: Mapped[int] = mapped_column(nullable=False, default=0, server_default="0")
     total_size: Mapped[int] = mapped_column(
@@ -103,6 +109,14 @@ class ProjectFile(TimestampMixin, Base):
     language: Mapped[str | None] = mapped_column(String(32))
     size: Mapped[int] = mapped_column(BigInteger, nullable=False, default=0, server_default="0")
     line_count: Mapped[int] = mapped_column(nullable=False, default=0, server_default="0")
+    scan_status: Mapped[str] = mapped_column(
+        String(32),
+        nullable=False,
+        default="pending",
+        server_default="pending",
+    )
+    scan_priority: Mapped[str | None] = mapped_column(String(16))
+    scan_reason: Mapped[str | None] = mapped_column(String(64))
     parse_status: Mapped[str] = mapped_column(
         String(32),
         nullable=False,

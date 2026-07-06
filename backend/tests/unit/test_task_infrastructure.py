@@ -153,9 +153,10 @@ def test_worker_builds_and_closes_its_own_dependencies(
             calls.append(("redis_close", None))
 
     class FakeProgress:
-        def __init__(self, sessions: Any, event_bus: Any) -> None:
+        def __init__(self, sessions: Any, event_bus: Any, scanner: Any) -> None:
             assert sessions is FakeDatabase.session_factory
             assert isinstance(event_bus, FakeRedis)
+            assert scanner.__class__.__name__ == "FileScanner"
 
         async def run_task_lifecycle(self, task_id: int) -> None:
             calls.append(("run", task_id))
