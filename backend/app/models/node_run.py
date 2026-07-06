@@ -12,6 +12,7 @@ from typing import Any
 from sqlalchemy import (
     JSON,
     BigInteger,
+    DateTime,
     ForeignKey,
     Index,
     Integer,
@@ -72,5 +73,5 @@ class NodeRun(Base):
     error_code: Mapped[str | None] = mapped_column(String(64))
     error_message: Mapped[str | None] = mapped_column(Text)
 
-    started_at: Mapped[datetime | None] = mapped_column()
-    finished_at: Mapped[datetime | None] = mapped_column()
+    started_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    finished_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))

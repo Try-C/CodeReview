@@ -11,10 +11,16 @@ from celery import Celery
 from app.api.reviews import _event_stream
 from app.core.config import Settings
 from app.core.redis import RedisDependency, StreamNotice, TaskEventBus
+from app.models.node_run import NodeRun
 from app.models.task import TaskEvent
 from app.services.task_service import TaskService
 from app.tasks import review
 from app.tasks.celery_app import CeleryTaskDispatcher, create_celery_app
+
+
+def test_node_run_timestamps_accept_utc_aware_values() -> None:
+    assert NodeRun.__table__.c.started_at.type.timezone is True
+    assert NodeRun.__table__.c.finished_at.type.timezone is True
 
 
 @dataclass(slots=True)

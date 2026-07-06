@@ -1,11 +1,7 @@
-import 'element-plus/es/components/alert/style/css'
-import 'element-plus/es/components/button/style/css'
-import 'element-plus/es/components/card/style/css'
-import 'element-plus/es/components/descriptions/style/css'
-import 'element-plus/es/components/skeleton/style/css'
-import 'element-plus/es/components/tag/style/css'
+import 'element-plus/dist/index.css'
 import './styles/base.css'
 
+import ElementPlus from 'element-plus'
 import { createPinia } from 'pinia'
 import { createApp } from 'vue'
 
@@ -16,4 +12,5 @@ const app = createApp(App)
 
 app.use(createPinia())
 app.use(router)
+app.use(ElementPlus)
 app.mount('#app')

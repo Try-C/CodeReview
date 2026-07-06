@@ -1,12 +1,9 @@
 /** Report API client per spec §16. */
 
-import { getJson, getText, requestJson } from './client'
+import { authHeaders, getJson, getText, patchJson } from './client'
 import type { IssueDetail, ReportAPIResponse } from '@/types/report'
 
-function authHeaders(): HeadersInit {
-  const token = localStorage.getItem('access_token')
-  return token ? { Authorization: `Bearer ${token}` } : {}
-}
+export type FeedbackStatus = 'confirmed' | 'false_positive' | 'needs_review'
 
 export async function fetchReport(taskId: number): Promise<ReportAPIResponse> {
   const { data } = await getJson<ReportAPIResponse>(
@@ -16,9 +13,19 @@ export async function fetchReport(taskId: number): Promise<ReportAPIResponse> {
   return data
 }
 
-export async function fetchIssues(taskId: number): Promise<IssueDetail[]> {
+export async function fetchIssues(
+  taskId: number,
+  riskFilter?: string,
+  categoryFilter?: string,
+  search?: string,
+): Promise<IssueDetail[]> {
+  const params = new URLSearchParams()
+  if (riskFilter) params.set('risk_level', riskFilter)
+  if (categoryFilter) params.set('category', categoryFilter)
+  if (search) params.set('search', search)
+  const qs = params.toString()
   const { data } = await getJson<IssueDetail[]>(
-    `/api/v1/reviews/${taskId}/issues`,
+    `/api/v1/reviews/${taskId}/issues${qs ? `?${qs}` : ''}`,
     { headers: authHeaders() },
   )
   return data
@@ -33,18 +40,12 @@ export async function fetchIssue(issueId: number): Promise<IssueDetail> {
 
 export async function submitFeedback(
   issueId: number,
-  status: string,
+  status: FeedbackStatus,
 ): Promise<{ id: number; status: string }> {
-  const { data } = await requestJson<{ id: number; status: string }>(
+  const { data } = await patchJson<{ id: number; status: string }>(
     `/api/v1/issues/${issueId}/feedback`,
-    {
-      method: 'PATCH',
-      headers: {
-        ...authHeaders(),
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({ status }),
-    },
+    { status },
+    { headers: authHeaders() },
   )
   return data
 }

@@ -1,24 +1,38 @@
 <script setup lang="ts">
-import { ElTag } from 'element-plus'
-import { RouterView } from 'vue-router'
+import { RouterView, useRouter } from 'vue-router'
+
+const router = useRouter()
+
+function goHome() {
+  router.push({ name: 'home' })
+}
 </script>
 
 <template>
   <div class="app-shell">
     <header class="topbar">
-      <RouterLink class="brand" to="/" aria-label="CodeReview Agent 首页">
+      <a
+        class="brand"
+        href="/"
+        aria-label="CodeReview Agent 首页"
+        @click.prevent="goHome"
+      >
         <span class="brand-mark" aria-hidden="true">&lt;/&gt;</span>
         <span>
           <strong>CodeReview Agent</strong>
           <small>Evidence-grounded review</small>
         </span>
-      </RouterLink>
+      </a>
 
-      <ElTag effect="plain" type="success">P0 · Module 12</ElTag>
+      <el-tag effect="plain" type="success" size="small">P0</el-tag>
     </header>
 
     <main class="main-content">
-      <RouterView />
+      <RouterView v-slot="{ Component }">
+        <Transition name="fade" mode="out-in">
+          <component :is="Component" />
+        </Transition>
+      </RouterView>
     </main>
   </div>
 </template>

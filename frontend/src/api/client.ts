@@ -3,6 +3,25 @@ import type { ApiErrorResponse, ApiResult } from '@/types/api'
 const configuredBaseUrl = import.meta.env.VITE_API_BASE_URL?.trim() ?? ''
 const apiBaseUrl = configuredBaseUrl.replace(/\/+$/, '')
 
+/** Shared auth header factory — used by all API modules. */
+export function authHeaders(): HeadersInit {
+  const token = localStorage.getItem('access_token')
+  return token ? { Authorization: `Bearer ${token}` } : {}
+}
+
+/** Check whether the stored token has expired. */
+export function isTokenExpired(): boolean {
+  const expiresAt = localStorage.getItem('access_token_expires_at')
+  if (!expiresAt) return false
+  return Date.now() > Number(expiresAt)
+}
+
+/** Clear all auth state and redirect to login. */
+export function clearAuth(): void {
+  localStorage.removeItem('access_token')
+  localStorage.removeItem('access_token_expires_at')
+}
+
 export class ApiError extends Error {
   readonly status: number
   readonly code: string
@@ -62,6 +81,38 @@ export function getJson<T>(
   init: RequestInit = {},
 ): Promise<ApiResult<T>> {
   return requestJson<T>(path, { ...init, method: 'GET' })
+}
+
+export function postJson<T>(
+  path: string,
+  body: unknown,
+  init: RequestInit = {},
+): Promise<ApiResult<T>> {
+  return requestJson<T>(path, {
+    ...init,
+    method: 'POST',
+    headers: {
+      ...init.headers,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify(body),
+  })
+}
+
+export function patchJson<T>(
+  path: string,
+  body: unknown,
+  init: RequestInit = {},
+): Promise<ApiResult<T>> {
+  return requestJson<T>(path, {
+    ...init,
+    method: 'PATCH',
+    headers: {
+      ...init.headers,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify(body),
+  })
 }
 
 export async function getText(

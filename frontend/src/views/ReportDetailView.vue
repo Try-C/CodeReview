@@ -14,12 +14,51 @@ const issues = ref<IssueDetail[]>([])
 const loading = ref(true)
 const drawerVisible = ref(false)
 const selectedIssue = ref<IssueDetail | null>(null)
+
+/* ── Filters ── */
+const riskFilter = ref('')
+const categoryFilter = ref('')
+const issueSearch = ref('')
+const currentPage = ref(1)
+const pageSize = ref(15)
+
 const stopReason = computed(() => {
   const value = report.value?.coverage_summary.stop_reason
   return typeof value === 'string' ? value : null
 })
 
-onMounted(async () => {
+const filteredIssues = computed(() => {
+  let list = issues.value
+  if (riskFilter.value) {
+    list = list.filter((i) => i.risk_level === riskFilter.value)
+  }
+  if (categoryFilter.value) {
+    list = list.filter((i) => i.category === categoryFilter.value)
+  }
+  if (issueSearch.value) {
+    const q = issueSearch.value.toLowerCase()
+    list = list.filter(
+      (i) =>
+        i.title.toLowerCase().includes(q) ||
+        i.relative_path.toLowerCase().includes(q) ||
+        i.issue_type.toLowerCase().includes(q),
+    )
+  }
+  return list
+})
+
+const pagedIssues = computed(() => {
+  const start = (currentPage.value - 1) * pageSize.value
+  return filteredIssues.value.slice(start, start + pageSize.value)
+})
+
+const categories = computed(() => {
+  const set = new Set(issues.value.map((i) => i.category))
+  return [...set].sort()
+})
+
+async function loadData() {
+  loading.value = true
   try {
     const [r, i] = await Promise.all([fetchReport(taskId), fetchIssues(taskId)])
     report.value = r
@@ -31,6 +70,10 @@ onMounted(async () => {
   } finally {
     loading.value = false
   }
+}
+
+onMounted(() => {
+  void loadData()
 })
 
 function openIssue(issue: IssueDetail) {
@@ -38,16 +81,8 @@ function openIssue(issue: IssueDetail) {
   drawerVisible.value = true
 }
 
-function getRiskColor(level: string) {
-  return level === 'High'
-    ? '#F56C6C'
-    : level === 'Medium'
-      ? '#E6A23C'
-      : '#67C23A'
-}
-
-function getRiskIcon(level: string) {
-  return level === 'High' ? '🔴' : level === 'Medium' ? '🟡' : '🟢'
+function onFilterChange() {
+  currentPage.value = 1
 }
 
 async function downloadMarkdown() {
@@ -60,19 +95,20 @@ async function downloadMarkdown() {
     a.download = `report-${taskId}.md`
     a.click()
     URL.revokeObjectURL(url)
-    ElMessage.success('Report downloaded')
+    ElMessage.success('报告已下载')
   } catch {
-    ElMessage.error('Download failed')
+    ElMessage.error('下载失败')
   }
 }
 </script>
 
 <template>
-  <div class="report-container" v-loading="loading">
+  <div class="page-container wide" v-loading="loading">
     <template v-if="report">
+      <!-- Header -->
       <header class="report-header">
-        <h1>Code Review Report</h1>
-        <p class="subtitle">
+        <h1>审查报告</h1>
+        <p class="page-subtitle">
           Task #{{ report.task_id }} &middot;
           {{
             report.created_at
@@ -80,13 +116,15 @@ async function downloadMarkdown() {
               : ''
           }}
         </p>
-        <p v-if="report.summary" class="summary">{{ report.summary }}</p>
+        <div v-if="report.summary" class="report-summary">
+          {{ report.summary }}
+        </div>
         <el-button
           @click="downloadMarkdown"
           size="small"
           style="margin-top: 8px"
         >
-          ⬇ Export Markdown
+          ⬇ 导出 Markdown
         </el-button>
       </header>
 
@@ -113,9 +151,9 @@ async function downloadMarkdown() {
       <!-- Issue type distribution -->
       <section
         v-if="Object.keys(report.issue_type_stats).length"
-        class="section"
+        class="report-section"
       >
-        <h2>Issue Types</h2>
+        <h2>问题类型分布</h2>
         <el-tag
           v-for="(count, cat) in report.issue_type_stats"
           :key="cat"
@@ -126,98 +164,174 @@ async function downloadMarkdown() {
       </section>
 
       <!-- Metrics -->
-      <section class="section">
-        <h2>Metrics</h2>
+      <section class="report-section">
+        <h2>运行指标</h2>
         <div class="metrics-grid">
           <span
-            >LLM calls:
+            >LLM 调用:
             <strong>{{ report.metrics_summary.llm_call_count }}</strong></span
           >
           <span
-            >Input tokens:
+            >输入 Tokens:
             <strong>{{
               report.metrics_summary.input_tokens.toLocaleString()
             }}</strong></span
           >
           <span
-            >Output tokens:
+            >输出 Tokens:
             <strong>{{
               report.metrics_summary.output_tokens.toLocaleString()
             }}</strong></span
           >
           <span
-            >Cost:
+            >费用:
             <strong>{{ report.metrics_summary.cost_display }}</strong></span
           >
           <span v-if="report.metrics_summary.elapsed_seconds">
-            Duration:
-            <strong>{{ report.metrics_summary.elapsed_seconds }}s</strong>
+            耗时: <strong>{{ report.metrics_summary.elapsed_seconds }}s</strong>
           </span>
           <span v-if="stopReason">
-            Stop reason: <strong>{{ stopReason }}</strong>
+            停止原因: <strong>{{ stopReason }}</strong>
           </span>
         </div>
       </section>
 
       <!-- Issues list -->
-      <section class="section">
-        <h2>Issues ({{ issues.length }})</h2>
+      <section class="report-section">
+        <h2>问题列表 ({{ issues.length }})</h2>
+
+        <!-- Filter bar -->
+        <div class="filter-bar">
+          <el-input
+            v-model="issueSearch"
+            placeholder="搜索标题、文件、类型…"
+            clearable
+            style="width: 220px"
+            @input="onFilterChange"
+          />
+          <el-select
+            v-model="riskFilter"
+            placeholder="风险等级"
+            clearable
+            style="width: 130px"
+            @change="onFilterChange"
+          >
+            <el-option label="High" value="High" />
+            <el-option label="Medium" value="Medium" />
+            <el-option label="Low" value="Low" />
+          </el-select>
+          <el-select
+            v-model="categoryFilter"
+            placeholder="分类"
+            clearable
+            style="width: 150px"
+            @change="onFilterChange"
+          >
+            <el-option
+              v-for="cat in categories"
+              :key="cat"
+              :label="cat"
+              :value="cat"
+            />
+          </el-select>
+        </div>
+
         <el-table
-          :data="issues"
+          :data="pagedIssues"
           stripe
           @row-click="openIssue"
-          style="cursor: pointer"
+          style="cursor: pointer; margin-top: 12px"
         >
-          <el-table-column width="50">
+          <el-table-column label="" width="40">
             <template #default="{ row }">
-              <span>{{ getRiskIcon(row.risk_level) }}</span>
+              <el-tag
+                :type="
+                  row.risk_level === 'High'
+                    ? 'danger'
+                    : row.risk_level === 'Medium'
+                      ? 'warning'
+                      : 'success'
+                "
+                size="small"
+              >
+                {{
+                  row.risk_level === 'High'
+                    ? 'H'
+                    : row.risk_level === 'Medium'
+                      ? 'M'
+                      : 'L'
+                }}
+              </el-tag>
             </template>
           </el-table-column>
           <el-table-column
             prop="title"
-            label="Title"
-            min-width="200"
+            label="标题"
+            min-width="220"
             show-overflow-tooltip
           />
-          <el-table-column prop="category" label="Category" width="120" />
+          <el-table-column prop="category" label="分类" width="110" />
           <el-table-column
             prop="issue_type"
-            label="Type"
-            width="140"
+            label="类型"
+            width="150"
             show-overflow-tooltip
           />
-          <el-table-column label="Risk" width="80">
-            <template #default="{ row }">
-              <span
-                :style="{
-                  color: getRiskColor(row.risk_level),
-                  fontWeight: 'bold',
-                }"
-              >
-                {{ row.risk_level }}
-              </span>
-            </template>
-          </el-table-column>
-          <el-table-column label="File" min-width="180" show-overflow-tooltip>
+          <el-table-column label="文件" min-width="180" show-overflow-tooltip>
             <template #default="{ row }">
               {{ row.relative_path }} :{{ row.start_line }}
             </template>
           </el-table-column>
           <el-table-column prop="critic_decision" label="Critic" width="90" />
-          <el-table-column label="Confidence" width="100">
+          <el-table-column label="置信度" width="90">
             <template #default="{ row }">
               {{ (row.confidence * 100).toFixed(0) }}%
             </template>
           </el-table-column>
+          <el-table-column label="状态" width="100">
+            <template #default="{ row }">
+              <el-tag
+                v-if="row.status !== 'open'"
+                :type="
+                  row.status === 'confirmed'
+                    ? 'success'
+                    : row.status === 'false_positive'
+                      ? 'danger'
+                      : 'warning'
+                "
+                size="small"
+              >
+                {{
+                  row.status === 'confirmed'
+                    ? '已确认'
+                    : row.status === 'false_positive'
+                      ? '误报'
+                      : '待复核'
+                }}
+              </el-tag>
+              <span v-else style="color: var(--muted); font-size: 12px">—</span>
+            </template>
+          </el-table-column>
         </el-table>
+
+        <el-pagination
+          v-if="filteredIssues.length > pageSize"
+          v-model:current-page="currentPage"
+          v-model:page-size="pageSize"
+          :total="filteredIssues.length"
+          :page-sizes="[10, 15, 25, 50]"
+          layout="total, sizes, prev, pager, next"
+          style="margin-top: 16px; justify-content: flex-end"
+          size="small"
+        />
       </section>
 
-      <!-- Degradation -->
+      <!-- Degradation summary -->
       <section
         v-if="Object.keys(report.degradation_summary).length"
-        class="section"
+        class="report-section"
       >
-        <h2>Degradation</h2>
+        <h2>降级记录</h2>
         <ul>
           <li v-for="(v, k) in report.degradation_summary" :key="k">
             <strong>{{ k }}</strong
@@ -225,6 +339,14 @@ async function downloadMarkdown() {
           </li>
         </ul>
       </section>
+    </template>
+
+    <!-- Empty state -->
+    <template v-else-if="!loading">
+      <div style="text-align: center; padding: 48px 0">
+        <p style="color: var(--muted)">报告加载失败或任务不存在。</p>
+        <el-button type="primary" @click="loadData()"> 重新加载 </el-button>
+      </div>
     </template>
 
     <IssueDetailDrawer
@@ -236,11 +358,6 @@ async function downloadMarkdown() {
 </template>
 
 <style scoped>
-.report-container {
-  max-width: 1100px;
-  margin: 0 auto;
-  padding: 24px;
-}
 .report-header {
   margin-bottom: 24px;
 }
@@ -248,64 +365,11 @@ async function downloadMarkdown() {
   font-size: 24px;
   margin-bottom: 4px;
 }
-.subtitle {
-  color: #909399;
-  font-size: 14px;
-}
-.summary {
-  margin-top: 12px;
-  padding: 12px 16px;
-  background: #f0f9eb;
-  border-left: 4px solid #67c23a;
-  border-radius: 4px;
-}
 
-.stats-row {
+.filter-bar {
   display: flex;
-  gap: 16px;
-  margin-bottom: 24px;
-}
-.stat-card {
-  flex: 1;
-  text-align: center;
-  padding: 16px;
-  border-radius: 8px;
-  color: #fff;
-}
-.stat-card.high {
-  background: #f56c6c;
-}
-.stat-card.medium {
-  background: #e6a23c;
-}
-.stat-card.low {
-  background: #67c23a;
-}
-.stat-card.total {
-  background: #409eff;
-}
-.stat-count {
-  display: block;
-  font-size: 32px;
-  font-weight: 700;
-}
-.stat-label {
-  font-size: 14px;
-  opacity: 0.9;
-}
-
-.section {
-  margin-bottom: 24px;
-}
-.section h2 {
-  font-size: 18px;
-  margin-bottom: 12px;
-  border-bottom: 1px solid #ebeef5;
-  padding-bottom: 8px;
-}
-.metrics-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
-  gap: 8px;
+  gap: 10px;
+  flex-wrap: wrap;
+  align-items: center;
 }
 </style>

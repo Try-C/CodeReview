@@ -1,4 +1,20 @@
 :root {
+  --ink: #14223a;
+  --muted: #637083;
+  --paper: rgba(255, 255, 255, 0.84);
+  --line: rgba(20, 34, 58, 0.12);
+  --accent: #0d8f73;
+  --accent-deep: #086b59;
+  --signal: #ffb44a;
+  --danger: #f56c6c;
+  --warning: #e6a23c;
+  --success: #67c23a;
+  --info: #409eff;
+  --radius-sm: 8px;
+  --radius-md: 14px;
+  --radius-lg: 22px;
+  --shadow-card: 0 24px 70px rgba(29, 50, 73, 0.1);
+  --shadow-glass: 0 30px 80px rgba(29, 50, 73, 0.13);
   color: #14223a;
   background: #f3f6f4;
   font-family:
@@ -12,13 +28,6 @@
     sans-serif;
   font-synthesis: none;
   text-rendering: optimizeLegibility;
-  --ink: #14223a;
-  --muted: #637083;
-  --paper: rgba(255, 255, 255, 0.84);
-  --line: rgba(20, 34, 58, 0.12);
-  --accent: #0d8f73;
-  --accent-deep: #086b59;
-  --signal: #ffb44a;
 }
 
 * {
@@ -77,7 +86,7 @@ a {
   width: 42px;
   height: 42px;
   color: white;
-  font-family: 'SFMono-Regular', Consolas, monospace;
+  font-family: 'SFMono-Regular', Consolas, 'Cascadia Code', monospace;
   font-size: 14px;
   font-weight: 700;
   background: var(--ink);
@@ -108,13 +117,40 @@ a {
   padding: 72px 0 96px;
 }
 
-.hero {
-  display: grid;
-  grid-template-columns: minmax(0, 1.2fr) minmax(340px, 0.8fr);
-  gap: 72px;
-  align-items: center;
+/* ── Shared page container (used by non-HomeView pages) ── */
+.page-container {
+  max-width: 760px;
+  margin: 0 auto;
+  padding: 36px;
+  background: rgba(255, 255, 255, 0.78);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-card);
+  backdrop-filter: blur(12px);
 }
 
+.page-container.wide {
+  max-width: 1100px;
+}
+
+.page-title-row {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  margin-bottom: 30px;
+}
+
+.page-title-row h1 {
+  margin: 0;
+  font-size: 28px;
+}
+
+.page-subtitle {
+  margin: 7px 0 0;
+  color: var(--muted);
+}
+
+/* ── Section heading (eyebrow + title) ── */
 .eyebrow,
 .card-kicker {
   margin: 0 0 14px;
@@ -122,6 +158,19 @@ a {
   font-size: 12px;
   font-weight: 800;
   letter-spacing: 0.18em;
+}
+
+.section-heading h2 {
+  margin: 0;
+  font-size: 34px;
+}
+
+/* ── Hero ── */
+.hero {
+  display: grid;
+  grid-template-columns: minmax(0, 1.2fr) minmax(340px, 0.8fr);
+  gap: 72px;
+  align-items: center;
 }
 
 .hero h1 {
@@ -158,11 +207,12 @@ a {
   border-radius: 999px;
 }
 
+/* ── Status card (glass) ── */
 .status-card {
   background: var(--paper);
   border: 1px solid rgba(255, 255, 255, 0.9);
-  border-radius: 22px;
-  box-shadow: 0 30px 80px rgba(29, 50, 73, 0.13);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-glass);
   backdrop-filter: blur(18px);
 }
 
@@ -202,13 +252,9 @@ a {
   width: 100%;
 }
 
+/* ── Pipeline ── */
 .pipeline {
   margin-top: 130px;
-}
-
-.section-heading h2 {
-  margin: 0;
-  font-size: 34px;
 }
 
 .pipeline-grid {
@@ -246,6 +292,261 @@ a {
   line-height: 1.7;
 }
 
+/* ── Workbench ── */
+.review-workbench {
+  margin-top: 110px;
+}
+
+.workbench-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 18px;
+  margin-top: 32px;
+}
+
+.workflow-card {
+  border: 1px solid var(--line);
+  border-radius: 18px;
+}
+
+.step-title {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+}
+
+.step-title span {
+  color: var(--accent);
+  font-family: 'SFMono-Regular', Consolas, monospace;
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.form-control {
+  margin-top: 12px;
+}
+
+.full-width {
+  width: 100%;
+}
+
+.button-row,
+.authenticated-row {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  justify-content: space-between;
+  margin-top: 14px;
+}
+
+.authenticated-row {
+  margin-top: 0;
+  color: var(--muted);
+  font-size: 13px;
+}
+
+.folder-picker {
+  display: grid;
+  min-height: 142px;
+  padding: 24px;
+  text-align: center;
+  border: 1.5px dashed rgba(13, 143, 115, 0.45);
+  border-radius: var(--radius-md);
+  cursor: pointer;
+  place-content: center;
+}
+
+.folder-picker:hover {
+  background: rgba(13, 143, 115, 0.05);
+  border-color: var(--accent);
+}
+
+.folder-picker input {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  opacity: 0;
+}
+
+.folder-picker span {
+  color: var(--accent-deep);
+  font-weight: 800;
+}
+
+.folder-picker small,
+.selection-summary span,
+.workflow-message {
+  margin-top: 7px;
+  color: var(--muted);
+  font-size: 12px;
+  line-height: 1.5;
+}
+
+.selection-summary {
+  display: grid;
+  margin-top: 14px;
+}
+
+.upload-progress {
+  margin-top: 18px;
+}
+
+.workflow-message {
+  margin-bottom: 0;
+}
+
+/* ── Progress & Report shared ── */
+.stage-card {
+  display: grid;
+  gap: 7px;
+  margin-top: 24px;
+  padding: 20px;
+  background: rgba(13, 143, 115, 0.06);
+  border-radius: var(--radius-md);
+}
+
+.stage-card span,
+.stage-card p {
+  color: var(--muted);
+  font-size: 13px;
+}
+
+.stage-card strong {
+  font-size: 20px;
+}
+
+.stage-card p {
+  margin: 0;
+}
+
+.actions {
+  display: flex;
+  gap: 10px;
+  margin-top: 24px;
+}
+
+/* ── Report sections ── */
+.report-section {
+  margin-bottom: 24px;
+}
+
+.report-section h2 {
+  font-size: 18px;
+  margin-bottom: 12px;
+  border-bottom: 1px solid var(--line);
+  padding-bottom: 8px;
+}
+
+/* Stats row */
+.stats-row {
+  display: flex;
+  gap: 16px;
+  margin-bottom: 24px;
+}
+
+.stat-card {
+  flex: 1;
+  text-align: center;
+  padding: 16px;
+  border-radius: var(--radius-sm);
+  color: #fff;
+}
+
+.stat-card.high {
+  background: var(--danger);
+}
+.stat-card.medium {
+  background: var(--warning);
+}
+.stat-card.low {
+  background: var(--success);
+}
+.stat-card.total {
+  background: var(--info);
+}
+
+.stat-count {
+  display: block;
+  font-size: 32px;
+  font-weight: 700;
+}
+
+.stat-label {
+  font-size: 14px;
+  opacity: 0.9;
+}
+
+/* Metrics grid */
+.metrics-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+  gap: 8px;
+}
+
+/* Report summary */
+.report-summary {
+  margin-top: 12px;
+  padding: 12px 16px;
+  background: #f0f9eb;
+  border-left: 4px solid var(--success);
+  border-radius: 4px;
+}
+
+/* ── Issue drawer shared ── */
+.issue-meta {
+  margin-bottom: 16px;
+}
+
+.issue-section {
+  margin-bottom: 20px;
+}
+
+.issue-section h4 {
+  font-size: 14px;
+  font-weight: 600;
+  margin-bottom: 6px;
+  color: var(--ink);
+}
+
+.code-block {
+  background: #f5f7fa;
+  padding: 12px;
+  border-radius: 4px;
+  overflow-x: auto;
+  font-size: 13px;
+  line-height: 1.5;
+  max-height: 320px;
+  overflow-y: auto;
+}
+
+.code-block code {
+  font-family: 'SFMono-Regular', Consolas, 'Cascadia Code', monospace;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+.detail-list {
+  list-style: none;
+  padding: 0;
+}
+
+.detail-list li {
+  padding: 4px 0;
+  font-size: 13px;
+}
+
+/* ── Route transitions ── */
+.fade-enter-active,
+.fade-leave-active {
+  transition: opacity 0.2s ease;
+}
+.fade-enter-from,
+.fade-leave-to {
+  opacity: 0;
+}
+
+/* ── Responsive ── */
 @media (max-width: 900px) {
   .main-content {
     padding-top: 40px;
@@ -256,12 +557,24 @@ a {
     gap: 52px;
   }
 
+  .workbench-grid {
+    grid-template-columns: 1fr;
+  }
+
   .pipeline {
     margin-top: 90px;
   }
 
   .pipeline-grid {
     grid-template-columns: repeat(2, 1fr);
+  }
+
+  .stats-row {
+    flex-wrap: wrap;
+  }
+
+  .stat-card {
+    min-width: calc(50% - 8px);
   }
 }
 

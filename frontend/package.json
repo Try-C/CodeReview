@@ -21,6 +21,7 @@
   },
   "dependencies": {
     "element-plus": "2.14.2",
+    "highlight.js": "^11.11.1",
     "pinia": "3.0.4",
     "vue": "3.5.39",
     "vue-router": "5.1.0"
