@@ -119,9 +119,21 @@ class StructuredLLM:
         cleaned = StructuredLLM.extract_json(raw)
         try:
             data = json.loads(cleaned)
+        except json.JSONDecodeError as exc:
+            logger.warning(
+                "structured_output_json_invalid error=%s cleaned_tail=%s",
+                exc,
+                cleaned[-200:],
+            )
+            return None
+        try:
             return model.model_validate(data)
-        except (json.JSONDecodeError, ValueError) as exc:
-            logger.debug("structured_output_parse_failed %s", exc)
+        except ValueError as exc:
+            logger.warning(
+                "structured_output_schema_mismatch error=%s data_keys=%s",
+                exc,
+                list(data.keys()) if isinstance(data, dict) else type(data).__name__,
+            )
             return None
 
 
