@@ -1,0 +1,58 @@
+import type { ApiErrorResponse, ApiResult } from '@/types/api'
+
+const configuredBaseUrl = import.meta.env.VITE_API_BASE_URL?.trim() ?? ''
+const apiBaseUrl = configuredBaseUrl.replace(/\/+$/, '')
+
+export class ApiError extends Error {
+  readonly status: number
+  readonly code: string
+  readonly requestId: string
+  readonly details: Record<string, unknown>
+
+  constructor(status: number, payload: ApiErrorResponse) {
+    super(payload.message)
+    this.name = 'ApiError'
+    this.status = status
+    this.code = payload.code
+    this.requestId = payload.request_id
+    this.details = payload.details
+  }
+}
+
+function createRequestId(): string {
+  return crypto.randomUUID()
+}
+
+export async function getJson<T>(
+  path: string,
+  init: RequestInit = {},
+): Promise<ApiResult<T>> {
+  const headers = new Headers(init.headers)
+  headers.set('Accept', 'application/json')
+
+  const callerRequestId = headers.get('X-Request-ID') ?? createRequestId()
+  headers.set('X-Request-ID', callerRequestId)
+
+  const response = await fetch(`${apiBaseUrl}${path}`, {
+    ...init,
+    method: 'GET',
+    headers,
+  })
+  const requestId = response.headers.get('X-Request-ID') ?? callerRequestId
+  const payload: unknown = await response.json()
+
+  if (!response.ok) {
+    const errorPayload = payload as Partial<ApiErrorResponse>
+    throw new ApiError(response.status, {
+      code: errorPayload.code ?? 'HTTP_ERROR',
+      message: errorPayload.message ?? 'Request failed',
+      request_id: errorPayload.request_id ?? requestId,
+      details: errorPayload.details ?? {},
+    })
+  }
+
+  return {
+    data: payload as T,
+    requestId,
+  }
+}
