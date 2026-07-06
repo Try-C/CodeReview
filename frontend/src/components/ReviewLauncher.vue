@@ -9,7 +9,7 @@ import {
   ElProgress,
   ElSelect,
 } from 'element-plus'
-import { computed, ref } from 'vue'
+import { computed, ref, watch } from 'vue'
 import { useRouter } from 'vue-router'
 
 import { ApiError, clearAuth } from '@/api/client'
@@ -38,6 +38,17 @@ const mode = ref<ReviewMode>('comprehensive')
 const submitting = ref(false)
 const message = ref('')
 const uploadPct = ref(0)
+
+/* Reset progress state when user selects a new folder */
+watch(
+  () => props.selectedFiles,
+  () => {
+    if (!submitting.value) {
+      uploadPct.value = 0
+      message.value = ''
+    }
+  },
+)
 
 const canSubmit = computed(() => {
   if (!props.isAuthenticated) return false
@@ -96,6 +107,7 @@ async function start() {
     if (error instanceof ApiError && error.status === 401) {
       clearAuth()
     }
+    uploadPct.value = 0
     message.value = ''
     ElMessage.error(
       error instanceof Error ? error.message : '上传或创建审查失败',
