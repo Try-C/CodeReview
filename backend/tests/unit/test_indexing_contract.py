@@ -95,9 +95,14 @@ def test_dashscope_provider_sanitizes_http_failures() -> None:
 
 
 def test_hnsw_options_are_transaction_local() -> None:
+    class MockBind:
+        class dialect:
+            name = "postgresql"
+
     class RecordingSession:
         def __init__(self) -> None:
             self.statements: list[str] = []
+            self.bind = MockBind()
 
         async def execute(self, statement: Any) -> None:
             self.statements.append(str(statement))

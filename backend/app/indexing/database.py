@@ -62,5 +62,7 @@ class HnswSearchOptions:
             raise ValueError("Unsupported HNSW iterative scan mode")
 
     async def apply(self, session: AsyncSession) -> None:
+        if session.bind is not None and session.bind.dialect.name != "postgresql":
+            return
         await session.execute(text(f"SET LOCAL hnsw.ef_search = {self.ef_search}"))
         await session.execute(text(f"SET LOCAL hnsw.iterative_scan = {self.iterative_scan}"))
