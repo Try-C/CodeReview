@@ -67,6 +67,9 @@ class Settings(BaseSettings):
     pgvector_min_version: str = "0.8.0"
     hnsw_ef_search: int = Field(default=100, ge=1, le=1000)
     hnsw_iterative_scan: Literal["strict_order", "relaxed_order"] = "strict_order"
+    top_k: int = Field(default=10, ge=1, le=100)
+    max_top_k: int = Field(default=30, ge=1, le=100)
+    rrf_k: int = Field(default=60, ge=1, le=1000)
 
     @field_validator("api_v1_prefix")
     @classmethod

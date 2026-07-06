@@ -1,6 +1,8 @@
 """Deterministic external dependency fakes for backend tests."""
 
-from dataclasses import dataclass
+from collections.abc import Sequence
+from dataclasses import dataclass, field
+from typing import Literal
 
 from app.core.redis import StreamNotice
 
@@ -58,3 +60,25 @@ class FakeTaskEventBus:
     ) -> list[StreamNotice]:
         del task_id, after_stream_id, block_milliseconds
         return []
+
+
+@dataclass(slots=True)
+class FakeEmbeddingProvider:
+    """Return deterministic vectors and record every call."""
+
+    model: str = "text-embedding-v4"
+    dimension: int = 1024
+    error: Exception | None = None
+    calls: list[tuple[tuple[str, ...], str]] = field(default_factory=list)
+
+    async def embed(
+        self,
+        texts: Sequence[str],
+        *,
+        text_type: Literal["document", "query"],
+    ) -> list[list[float]]:
+        self.calls.append((tuple(texts), text_type))
+        if self.error is not None:
+            raise self.error
+        return [[float(index + 1) + hash(text) % 100 / 1000] * self.dimension
+                for index, text in enumerate(texts)]

@@ -28,6 +28,7 @@ def test_initial_migration_upgrades_and_downgrades(tmp_path: Path) -> None:
         "code_symbols",
         "project_files",
         "projects",
+        "retrieval_records",
         "review_tasks",
         "task_events",
         "upload_sessions",
@@ -76,6 +77,22 @@ def test_initial_migration_upgrades_and_downgrades(tmp_path: Path) -> None:
         "ck_projects_total_files_nonnegative",
         "ck_projects_total_lines_nonnegative",
         "ck_projects_total_size_nonnegative",
+    }
+    assert {column["name"] for column in inspector.get_columns("retrieval_records")} >= {
+        "task_id",
+        "project_id",
+        "query_hash",
+        "query_preview",
+        "chunk_id",
+        "vector_rank",
+        "keyword_rank",
+        "rrf_score",
+        "selected",
+        "retrieval_round",
+    }
+    assert {index["name"] for index in inspector.get_indexes("retrieval_records")} == {
+        "ix_retrieval_records_task_id",
+        "ix_retrieval_records_query_hash",
     }
 
     command.downgrade(config, "base")
