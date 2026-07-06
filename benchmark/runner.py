@@ -114,8 +114,8 @@ class Predictor(Protocol):
 
 
 def _normalize_path(p: str) -> str:
-    """Normalise a relative path for deterministic comparison."""
-    return str(Path(p))
+    """Normalise a relative path for deterministic cross-platform comparison."""
+    return str(Path(p.replace("\\", "/")))
 
 
 def _overlap_ratio(
