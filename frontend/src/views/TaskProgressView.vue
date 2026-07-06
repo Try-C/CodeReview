@@ -1,5 +1,12 @@
 <script setup lang="ts">
-import { ElAlert, ElButton, ElMessage, ElProgress, ElTag } from 'element-plus'
+import {
+  ElAlert,
+  ElButton,
+  ElMessage,
+  ElProgress,
+  ElSkeleton,
+  ElTag,
+} from 'element-plus'
 import { computed, onMounted, onUnmounted, ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 
@@ -12,6 +19,7 @@ const router = useRouter()
 const taskId = Number(route.params.taskId)
 const task = ref<ReviewTask | null>(null)
 const loadError = ref('')
+const loading = ref(true)
 
 let eventSource: EventSource | undefined
 let pollTimer: number | undefined
@@ -24,7 +32,9 @@ const completed = computed(
 const terminalFailure = computed(
   () => task.value?.status === 'failed' || task.value?.status === 'cancelled',
 )
-const isRunning = computed(() => !completed.value && !terminalFailure.value)
+const isRunning = computed(
+  () => task.value !== null && !completed.value && !terminalFailure.value,
+)
 
 const statusType = computed(() => {
   if (completed.value) return 'success'
@@ -99,19 +109,15 @@ async function pollTask() {
   try {
     task.value = await fetchReview(taskId)
     loadError.value = ''
-    if (completed.value || terminalFailure.value) {
-      stopPolling()
-      if (completed.value) {
-        ElMessage.success('审查完成，报告已生成')
-      }
-    }
   } catch (error) {
     loadError.value =
       error instanceof Error ? error.message : '无法获取任务进度'
     if (error instanceof ApiError && error.status === 401) {
       clearAuth()
       stopPolling()
+      return
     }
+    /* Don't stop polling on transient errors */
   }
 }
 
@@ -142,16 +148,38 @@ async function doCancel() {
   }
 }
 
+/* ── Manual retry ── */
+async function retry() {
+  loading.value = true
+  loadError.value = ''
+  await pollTask()
+  loading.value = false
+  if (task.value && isRunning.value) {
+    connectSSE()
+    startPolling()
+  }
+}
+
 /* ── Lifecycle ── */
 onMounted(async () => {
   if (!Number.isInteger(taskId) || taskId <= 0) {
     loadError.value = '无效的任务编号'
+    loading.value = false
     return
   }
   await pollTask()
-  if (isRunning.value && !loadError.value) {
-    connectSSE()
-    startPolling()
+  loading.value = false
+
+  /* Task loaded — decide on updates */
+  if (task.value) {
+    if (completed.value || terminalFailure.value) {
+      if (completed.value) {
+        ElMessage.success('审查完成，报告已生成')
+      }
+    } else {
+      connectSSE()
+      startPolling()
+    }
   }
 })
 
@@ -182,14 +210,39 @@ function returnHome() {
       </ElTag>
     </div>
 
-    <ElAlert
-      v-if="loadError"
-      :title="loadError"
-      type="error"
-      :closable="false"
-      show-icon
+    <!-- Loading skeleton -->
+    <ElSkeleton
+      v-if="loading"
+      :rows="4"
+      animated
+      :throttle="0"
+      style="margin-top: 16px"
     />
 
+    <!-- Error with retry -->
+    <template v-if="!loading && loadError">
+      <ElAlert :title="loadError" type="error" :closable="false" show-icon />
+      <div class="actions" style="margin-top: 20px">
+        <ElButton type="primary" @click="retry">重新加载</ElButton>
+        <ElButton @click="returnHome">返回首页</ElButton>
+      </div>
+    </template>
+
+    <!-- Task loaded but API returned nothing (shouldn't happen normally) -->
+    <template v-if="!loading && !loadError && !task">
+      <ElAlert
+        title="未获取到任务数据，请确认任务是否存在或后端服务是否正常"
+        type="warning"
+        :closable="false"
+        show-icon
+      />
+      <div class="actions" style="margin-top: 20px">
+        <ElButton type="primary" @click="retry">重新加载</ElButton>
+        <ElButton @click="returnHome">返回首页</ElButton>
+      </div>
+    </template>
+
+    <!-- Task content -->
     <template v-if="task">
       <ElProgress
         :percentage="task.progress"
@@ -197,6 +250,7 @@ function returnHome() {
           completed ? 'success' : terminalFailure ? 'exception' : undefined
         "
         :stroke-width="18"
+        style="margin-top: 8px"
       />
 
       <div class="stage-card">
@@ -205,6 +259,14 @@ function returnHome() {
         <p v-if="task.fallback_reason">降级原因：{{ task.fallback_reason }}</p>
         <p v-if="task.error_message">错误：{{ task.error_message }}</p>
       </div>
+
+      <!-- Still-loading hint while polling recovers from transient error -->
+      <p
+        v-if="loadError && isRunning"
+        style="color: var(--muted); font-size: 13px; margin: 12px 0 0"
+      >
+        ⚠ 获取进度时暂时出错：{{ loadError }}。正在自动重试…
+      </p>
 
       <div class="actions">
         <ElButton v-if="completed" type="primary" @click="viewReport">
