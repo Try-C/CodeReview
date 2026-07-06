@@ -31,6 +31,7 @@ coverage/
 .playwright-cli/
 logs/
 output/playwright/
+output/runtime/
 tmp/
 uploads/
 var/
