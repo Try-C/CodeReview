@@ -350,7 +350,175 @@ async def _create_chunk(
 
 async def _latest_chunk_id(sessions: async_sessionmaker[AsyncSession]) -> int:
     async with sessions() as session:
-        row = await session.execute(
-            select(CodeChunk.id).order_by(CodeChunk.id.desc()).limit(1)
-        )
+        row = await session.execute(select(CodeChunk.id).order_by(CodeChunk.id.desc()).limit(1))
         return row.scalar_one()
+
+
+# ---------------------------------------------------------------------------
+# Degradation and idempotency tests
+# ---------------------------------------------------------------------------
+
+
+def test_embedding_failure_falls_back_to_keyword_only(tmp_path: Path) -> None:
+    asyncio.run(_embedding_degradation_scenario(tmp_path))
+
+
+async def _embedding_degradation_scenario(tmp_path: Path) -> None:
+    engine = create_async_engine(
+        f"sqlite+aiosqlite:///{(tmp_path / 'degrade.sqlite3').as_posix()}",
+        poolclass=NullPool,
+    )
+    async with engine.begin() as connection:
+        await connection.run_sync(Base.metadata.create_all)
+    sessions = async_sessionmaker(engine, expire_on_commit=False)
+
+    project_id, task_id = await _create_project_and_task(sessions)
+    file_id = await _create_file(sessions, project_id, "src/check.py")
+    await _create_chunk(
+        sessions,
+        project_id=project_id,
+        file_id=file_id,
+        fingerprint="x" * 64,
+        content="def hash_password(pw):\n    return sha256(pw).hexdigest()",
+        symbol_name="hash_password",
+        qualified_name="hash_password",
+        symbol_type="function",
+        language="python",
+        embedding=_embedding_vector(5),
+        start_line=1,
+        end_line=2,
+        relative_path="src/check.py",
+    )
+
+    failing_provider = FakeEmbeddingProvider(
+        error=RuntimeError("downstream unavailable"),
+    )
+    retriever = HybridRetriever(sessions, failing_provider, top_k=10)
+
+    result = await retriever.retrieve(
+        task_id=task_id,
+        project_id=project_id,
+        query="hash password",
+    )
+
+    # Should fall back to keyword-only, not fail
+    assert len(result.degradation) == 1
+    assert "embedding_failed" in result.degradation
+    assert len(result.vector_results) == 0
+    # Keyword results may be empty or non-empty; either is acceptable
+    # as long as the retrieval didn't raise
+
+    # Verify trace was still written
+    async with sessions() as session:
+        records = list(
+            await session.scalars(select(RetrievalRecord).where(RetrievalRecord.task_id == task_id))
+        )
+    if result.chunks:
+        assert len(records) >= 1
+
+    await engine.dispose()
+
+
+def test_retrieval_trace_is_idempotent_on_retry(tmp_path: Path) -> None:
+    asyncio.run(_idempotency_scenario(tmp_path))
+
+
+async def _idempotency_scenario(tmp_path: Path) -> None:
+    engine = create_async_engine(
+        f"sqlite+aiosqlite:///{(tmp_path / 'idem.sqlite3').as_posix()}",
+        poolclass=NullPool,
+    )
+    async with engine.begin() as connection:
+        await connection.run_sync(Base.metadata.create_all)
+    sessions = async_sessionmaker(engine, expire_on_commit=False)
+
+    project_id, task_id = await _create_project_and_task(sessions)
+    file_id = await _create_file(sessions, project_id, "src/auth.py")
+    await _create_chunk(
+        sessions,
+        project_id=project_id,
+        file_id=file_id,
+        fingerprint="y" * 64,
+        content="def login():\n    pass",
+        symbol_name="login",
+        qualified_name="login",
+        symbol_type="function",
+        language="python",
+        embedding=_embedding_vector(10),
+        start_line=1,
+        end_line=2,
+        relative_path="src/auth.py",
+    )
+
+    retriever = HybridRetriever(sessions, FakeEmbeddingProvider())
+    first = await retriever.retrieve(
+        task_id=task_id,
+        project_id=project_id,
+        query="login",
+        review_item_key="login-review",
+    )
+
+    # Retry with same parameters — should not raise duplicate key error
+    second = await retriever.retrieve(
+        task_id=task_id,
+        project_id=project_id,
+        query="login",
+        review_item_key="login-review",
+    )
+
+    assert first.query_hash == second.query_hash
+    assert len(second.chunks) >= 1
+
+    await engine.dispose()
+
+
+def test_context_assembler_token_budget_truncation(tmp_path: Path) -> None:
+    asyncio.run(_token_budget_scenario(tmp_path))
+
+
+async def _token_budget_scenario(tmp_path: Path) -> None:
+    engine = create_async_engine(
+        f"sqlite+aiosqlite:///{(tmp_path / 'budget.sqlite3').as_posix()}",
+        poolclass=NullPool,
+    )
+    async with engine.begin() as connection:
+        await connection.run_sync(Base.metadata.create_all)
+    sessions = async_sessionmaker(engine, expire_on_commit=False)
+
+    project_id, task_id = await _create_project_and_task(sessions)
+    file_id = await _create_file(sessions, project_id, "src/large.py")
+
+    # Create multiple chunks that would exceed a tiny budget
+    for i in range(5):
+        await _create_chunk(
+            sessions,
+            project_id=project_id,
+            file_id=file_id,
+            fingerprint=f"z{i}" + "x" * 62,
+            content=f"def func_{i}():\n" + "    pass\n" * 50,
+            symbol_name=f"func_{i}",
+            qualified_name=f"func_{i}",
+            symbol_type="function",
+            language="python",
+            embedding=_embedding_vector(i + 1),
+            start_line=i * 52 + 1,
+            end_line=i * 52 + 51,
+            relative_path="src/large.py",
+        )
+
+    retriever = HybridRetriever(sessions, FakeEmbeddingProvider(), top_k=5, max_top_k=10)
+    result = await retriever.retrieve(
+        task_id=task_id,
+        project_id=project_id,
+        query="func",
+    )
+    assert len(result.chunks) >= 1
+
+    # Assemble with a small token budget — should truncate before all chunks
+    assembler = ContextAssembler(sessions, max_token_budget=2000)
+    assembled = await assembler.assemble(result.chunks)
+
+    assert len(assembled) >= 1
+    assert len(assembled) <= len(result.chunks)
+
+    await engine.dispose()

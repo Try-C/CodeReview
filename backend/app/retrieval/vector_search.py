@@ -52,9 +52,7 @@ class VectorSearcher:
         if top_k < 1:
             return []
 
-        dialect_name = (
-            session.bind.dialect.name if session.bind is not None else "postgresql"
-        )
+        dialect_name = session.bind.dialect.name if session.bind is not None else "postgresql"
 
         if dialect_name == "postgresql":
             await self._hnsw.apply(session)

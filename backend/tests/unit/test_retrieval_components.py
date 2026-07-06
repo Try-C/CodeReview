@@ -68,9 +68,7 @@ class TestVectorSearcher:
 
         searcher = VectorSearcher()
         result = _run(
-            searcher.search(
-                AsyncMock(), query_vector=[0.1] * 1024, project_id=1, top_k=0
-            )
+            searcher.search(AsyncMock(), query_vector=[0.1] * 1024, project_id=1, top_k=0)
         )
         assert result == []
 
@@ -82,11 +80,7 @@ class TestVectorSearcher:
         session.execute = AsyncMock(return_value=MagicMock())
         session.execute.return_value = []
 
-        _run(
-            searcher.search(
-                session, query_vector=[0.1] * 1024, project_id=1, top_k=10
-            )
-        )
+        _run(searcher.search(session, query_vector=[0.1] * 1024, project_id=1, top_k=10))
         assert session.execute.called
 
 
@@ -96,9 +90,7 @@ class TestKeywordSearcher:
 
         searcher = KeywordSearcher()
         session = AsyncMock()
-        result = _run(
-            searcher.search(session, query="find user", project_id=1, top_k=0)
-        )
+        result = _run(searcher.search(session, query="find user", project_id=1, top_k=0))
         assert result == []
 
     def test_returns_empty_for_blank_query(self) -> None:
@@ -106,7 +98,5 @@ class TestKeywordSearcher:
 
         searcher = KeywordSearcher()
         session = AsyncMock()
-        result = _run(
-            searcher.search(session, query="   ", project_id=1, top_k=10)
-        )
+        result = _run(searcher.search(session, query="   ", project_id=1, top_k=10))
         assert result == []

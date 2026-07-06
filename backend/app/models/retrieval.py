@@ -10,6 +10,7 @@ from sqlalchemy import (
     Index,
     Integer,
     String,
+    UniqueConstraint,
     text,
 )
 from sqlalchemy.orm import Mapped, mapped_column
@@ -21,10 +22,18 @@ FOREIGN_KEY = BigInteger().with_variant(Integer, "sqlite")
 
 
 class RetrievalRecord(Base):
-    """One row per (task, review_item, chunk) combination per retrieval round."""
+    """One row per (task, review_item, query_hash, chunk, round) — idempotent."""
 
     __tablename__ = "retrieval_records"
     __table_args__ = (
+        UniqueConstraint(
+            "task_id",
+            "review_item_key",
+            "query_hash",
+            "chunk_id",
+            "retrieval_round",
+            name="uq_retrieval_records_identity",
+        ),
         Index("ix_retrieval_records_task_id", "task_id"),
         Index("ix_retrieval_records_query_hash", "task_id", "query_hash"),
     )
