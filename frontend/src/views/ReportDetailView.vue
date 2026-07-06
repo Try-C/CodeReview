@@ -1,17 +1,22 @@
 <script setup lang="ts">
 /** Full review report page per spec §17.2. */
 import { computed, ref, onMounted } from 'vue'
-import { useRoute } from 'vue-router'
-import { ElMessage } from 'element-plus'
+import { useRoute, useRouter } from 'vue-router'
+import { ElMessage, ElSkeleton } from 'element-plus'
 import { fetchReport, fetchIssues, fetchReportMarkdown } from '@/api/reports'
+import { fetchReview } from '@/api/workflow'
 import type { ReportAPIResponse, IssueDetail } from '@/types/report'
+import type { ReviewTask } from '@/types/workflow'
 import IssueDetailDrawer from '@/components/IssueDetailDrawer.vue'
 
 const route = useRoute()
+const router = useRouter()
 const taskId = Number(route.params.taskId)
 const report = ref<ReportAPIResponse | null>(null)
 const issues = ref<IssueDetail[]>([])
+const task = ref<ReviewTask | null>(null)
 const loading = ref(true)
+const loadError = ref('')
 const drawerVisible = ref(false)
 const selectedIssue = ref<IssueDetail | null>(null)
 
@@ -26,6 +31,10 @@ const stopReason = computed(() => {
   const value = report.value?.coverage_summary.stop_reason
   return typeof value === 'string' ? value : null
 })
+
+const taskFailed = computed(() =>
+  task.value ? task.value.status === 'failed' || task.value.status === 'cancelled' : false,
+)
 
 const filteredIssues = computed(() => {
   let list = issues.value
@@ -59,14 +68,18 @@ const categories = computed(() => {
 
 async function loadData() {
   loading.value = true
+  loadError.value = ''
   try {
-    const [r, i] = await Promise.all([fetchReport(taskId), fetchIssues(taskId)])
+    const [r, i, t] = await Promise.all([
+      fetchReport(taskId),
+      fetchIssues(taskId),
+      fetchReview(taskId).catch(() => null),
+    ])
     report.value = r
     issues.value = i
+    task.value = t
   } catch (e: unknown) {
-    ElMessage.error(
-      'Failed to load report: ' + (e instanceof Error ? e.message : String(e)),
-    )
+    loadError.value = e instanceof Error ? e.message : '无法加载报告数据'
   } finally {
     loading.value = false
   }
@@ -83,6 +96,10 @@ function openIssue(issue: IssueDetail) {
 
 function onFilterChange() {
   currentPage.value = 1
+}
+
+function returnToProgress() {
+  void router.push({ name: 'task-progress', params: { taskId } })
 }
 
 async function downloadMarkdown() {
@@ -103,33 +120,74 @@ async function downloadMarkdown() {
 </script>
 
 <template>
-  <div class="page-container wide" v-loading="loading">
+  <div class="page-container wide">
+    <!-- Header always visible -->
+    <header class="report-header">
+      <h1>审查报告</h1>
+      <p class="page-subtitle">
+        Task #{{ taskId }}
+        <template v-if="task">
+          &middot;
+          <el-tag
+            :type="
+              task.status === 'success' || task.status === 'partial_success'
+                ? 'success'
+                : task.status === 'failed' || task.status === 'cancelled'
+                  ? 'danger'
+                  : 'primary'
+            "
+            size="small"
+          >
+            {{ task.status }}
+          </el-tag>
+        </template>
+      </p>
+    </header>
+
+    <!-- Loading -->
+    <ElSkeleton v-if="loading" :rows="8" animated :throttle="0" />
+
+    <!-- Task failed — explain why there's no report -->
+    <template v-if="!loading && taskFailed">
+      <el-alert
+        :title="`任务执行失败：${task?.error_message ?? task?.status ?? '未知错误'}`"
+        type="error"
+        :closable="false"
+        show-icon
+      />
+      <p style="color: var(--muted); margin-top: 12px">
+        该任务未能成功生成审查报告。请返回进度页面查看详细信息。
+      </p>
+      <div style="margin-top: 20px; display: flex; gap: 10px">
+        <el-button type="primary" @click="returnToProgress">返回进度页</el-button>
+        <el-button @click="router.push({ name: 'home' })">返回首页</el-button>
+      </div>
+    </template>
+
+    <!-- API error -->
+    <template v-if="!loading && loadError && !taskFailed">
+      <el-alert :title="loadError" type="error" :closable="false" show-icon />
+      <div style="margin-top: 20px; display: flex; gap: 10px">
+        <el-button type="primary" @click="loadData()">重新加载</el-button>
+        <el-button @click="router.push({ name: 'home' })">返回首页</el-button>
+      </div>
+    </template>
+
+    <!-- Report loaded -->
     <template v-if="report">
-      <!-- Header -->
-      <header class="report-header">
-        <h1>审查报告</h1>
-        <p class="page-subtitle">
-          Task #{{ report.task_id }} &middot;
-          {{
-            report.created_at
-              ? new Date(report.created_at).toLocaleString()
-              : ''
-          }}
-        </p>
-        <div v-if="report.summary" class="report-summary">
-          {{ report.summary }}
-        </div>
-        <el-button
-          @click="downloadMarkdown"
-          size="small"
-          style="margin-top: 8px"
-        >
-          ⬇ 导出 Markdown
-        </el-button>
-      </header>
+      <div v-if="report.summary" class="report-summary">
+        {{ report.summary }}
+      </div>
+      <el-button
+        @click="downloadMarkdown"
+        size="small"
+        style="margin-top: 8px"
+      >
+        ⬇ 导出 Markdown
+      </el-button>
 
       <!-- Severity stats -->
-      <section class="stats-row">
+      <section class="stats-row" style="margin-top: 24px">
         <div class="stat-card high">
           <span class="stat-count">{{ report.severity_stats.high }}</span>
           <span class="stat-label">High</span>
@@ -188,7 +246,8 @@ async function downloadMarkdown() {
             <strong>{{ report.metrics_summary.cost_display }}</strong></span
           >
           <span v-if="report.metrics_summary.elapsed_seconds">
-            耗时: <strong>{{ report.metrics_summary.elapsed_seconds }}s</strong>
+            耗时:
+            <strong>{{ report.metrics_summary.elapsed_seconds }}s</strong>
           </span>
           <span v-if="stopReason">
             停止原因: <strong>{{ stopReason }}</strong>
@@ -200,7 +259,6 @@ async function downloadMarkdown() {
       <section class="report-section">
         <h2>问题列表 ({{ issues.length }})</h2>
 
-        <!-- Filter bar -->
         <div class="filter-bar">
           <el-input
             v-model="issueSearch"
@@ -339,14 +397,6 @@ async function downloadMarkdown() {
           </li>
         </ul>
       </section>
-    </template>
-
-    <!-- Empty state -->
-    <template v-else-if="!loading">
-      <div style="text-align: center; padding: 48px 0">
-        <p style="color: var(--muted)">报告加载失败或任务不存在。</p>
-        <el-button type="primary" @click="loadData()"> 重新加载 </el-button>
-      </div>
     </template>
 
     <IssueDetailDrawer

@@ -145,7 +145,13 @@ class ReviewWorkflowService:
                 )
             except Exception:
                 await self._mark_parse_result(project_file.id, "failed", None, "PARSE_FAILED")
-                raise
+                summary[project_file.relative_path] = {
+                    "language": project_file.language,
+                    "line_count": project_file.line_count,
+                    "priority": project_file.scan_priority,
+                    "parse_strategy": "failed",
+                    "parse_error": "PARSE_FAILED",
+                }
             await self._mark_parse_result(
                 project_file.id,
                 "success",

@@ -43,9 +43,9 @@ class ProgressService:
             if self._workflow is not None:
                 await self._workflow(task_id)
             await self._finish(task_id)
-        except Exception:
+        except Exception as exc:
             logger.exception("review_task_failed", extra={"task_id": task_id})
-            await self._fail(task_id)
+            await self._fail(task_id, exc)
             raise
 
     async def delete_expired_events(self, retention_days: int) -> None:
@@ -238,7 +238,7 @@ class ProgressService:
             await session.refresh(event)
             await self._publish(event)
 
-    async def _fail(self, task_id: int) -> None:
+    async def _fail(self, task_id: int, exc: Exception | None = None) -> None:
         async with self._sessions() as session:
             task = await session.scalar(
                 select(ReviewTask).where(ReviewTask.id == task_id).with_for_update()
@@ -248,7 +248,7 @@ class ProgressService:
             task.status = "failed"
             task.current_stage = task.current_stage or "worker"
             task.error_code = "REVIEW_PIPELINE_FAILED"
-            task.error_message = "Review worker failed"
+            task.error_message = str(exc) if exc else "Review worker failed"
             task.finished_at = datetime.now(UTC)
             event = TaskEvent(
                 task_id=task.id,
