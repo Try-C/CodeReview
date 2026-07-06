@@ -1,0 +1,96 @@
+{
+  "name": "CodeReview Agent – Python Internal Smoke Benchmark",
+  "version": "1.0.0",
+  "description": "Ground truth for Python vulnerability detection. Each entry maps one sink with its language, category, path, CWE, and line range.",
+  "language": "python",
+  "entries": [
+    {
+      "id": "python-sqli-001",
+      "language": "python",
+      "category": "security",
+      "relative_path": "datasets/python/sqli/vulnerable_query.py",
+      "cwe_id": "CWE-89",
+      "sink_line": 9,
+      "start_line": 8,
+      "end_line": 9,
+      "vulnerable": true
+    },
+    {
+      "id": "python-cmd-inject-001",
+      "language": "python",
+      "category": "security",
+      "relative_path": "datasets/python/command_injection/vulnerable_subprocess.py",
+      "cwe_id": "CWE-78",
+      "sink_line": 6,
+      "start_line": 6,
+      "end_line": 6,
+      "vulnerable": true
+    },
+    {
+      "id": "python-deserialize-001",
+      "language": "python",
+      "category": "security",
+      "relative_path": "datasets/python/insecure_deserialization/vulnerable_pickle.py",
+      "cwe_id": "CWE-502",
+      "sink_line": 6,
+      "start_line": 6,
+      "end_line": 6,
+      "vulnerable": true
+    },
+    {
+      "id": "python-hardcoded-key-001",
+      "language": "python",
+      "category": "security",
+      "relative_path": "datasets/python/hardcoded_key/hardcoded_secret.py",
+      "cwe_id": "CWE-798",
+      "sink_line": 3,
+      "start_line": 3,
+      "end_line": 3,
+      "vulnerable": true
+    },
+    {
+      "id": "python-path-traversal-001",
+      "language": "python",
+      "category": "security",
+      "relative_path": "datasets/python/path_traversal/vulnerable_path.py",
+      "cwe_id": "CWE-22",
+      "sink_line": 8,
+      "start_line": 7,
+      "end_line": 9,
+      "vulnerable": true
+    },
+    {
+      "id": "python-input-validation-001",
+      "language": "python",
+      "category": "security",
+      "relative_path": "datasets/python/input_validation/no_validation.py",
+      "cwe_id": "CWE-20",
+      "sink_line": 6,
+      "start_line": 6,
+      "end_line": 7,
+      "vulnerable": true
+    },
+    {
+      "id": "python-assert-check-001",
+      "language": "python",
+      "category": "security",
+      "relative_path": "datasets/python/assert_check/assert_security.py",
+      "cwe_id": "CWE-617",
+      "sink_line": 4,
+      "start_line": 4,
+      "end_line": 4,
+      "vulnerable": true
+    },
+    {
+      "id": "python-exception-swallow-001",
+      "language": "python",
+      "category": "security",
+      "relative_path": "datasets/python/exception_swallow/swallow_exception.py",
+      "cwe_id": "CWE-390",
+      "sink_line": 8,
+      "start_line": 7,
+      "end_line": 9,
+      "vulnerable": true
+    }
+  ]
+}

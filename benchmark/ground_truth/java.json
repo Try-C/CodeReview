@@ -1,0 +1,96 @@
+{
+  "name": "CodeReview Agent – Java Internal Smoke Benchmark",
+  "version": "1.0.0",
+  "description": "Ground truth for Java vulnerability detection. Each entry maps one sink with its language, category, path, CWE, and line range.",
+  "language": "java",
+  "entries": [
+    {
+      "id": "java-sqli-001",
+      "language": "java",
+      "category": "security",
+      "relative_path": "datasets/java/sqli/VulnerableService.java",
+      "cwe_id": "CWE-89",
+      "sink_line": 14,
+      "start_line": 14,
+      "end_line": 15,
+      "vulnerable": true
+    },
+    {
+      "id": "java-hardcoded-key-001",
+      "language": "java",
+      "category": "security",
+      "relative_path": "datasets/java/hardcoded_key/HardcodedKey.java",
+      "cwe_id": "CWE-798",
+      "sink_line": 6,
+      "start_line": 6,
+      "end_line": 6,
+      "vulnerable": true
+    },
+    {
+      "id": "java-nullptr-001",
+      "language": "java",
+      "category": "security",
+      "relative_path": "datasets/java/null_pointer/NullableService.java",
+      "cwe_id": "CWE-476",
+      "sink_line": 8,
+      "start_line": 8,
+      "end_line": 8,
+      "vulnerable": true
+    },
+    {
+      "id": "java-transaction-001",
+      "language": "java",
+      "category": "security",
+      "relative_path": "datasets/java/transaction/MissingTransaction.java",
+      "cwe_id": "CWE-778",
+      "sink_line": 12,
+      "start_line": 12,
+      "end_line": 15,
+      "vulnerable": true
+    },
+    {
+      "id": "java-missing-auth-001",
+      "language": "java",
+      "category": "security",
+      "relative_path": "datasets/java/missing_auth/UnprotectedEndpoint.java",
+      "cwe_id": "CWE-862",
+      "sink_line": 7,
+      "start_line": 7,
+      "end_line": 8,
+      "vulnerable": true
+    },
+    {
+      "id": "java-plaintext-pwd-001",
+      "language": "java",
+      "category": "security",
+      "relative_path": "datasets/java/plaintext_password/PlaintextLog.java",
+      "cwe_id": "CWE-256",
+      "sink_line": 12,
+      "start_line": 12,
+      "end_line": 12,
+      "vulnerable": true
+    },
+    {
+      "id": "java-sensitive-log-001",
+      "language": "java",
+      "category": "security",
+      "relative_path": "datasets/java/sensitive_log/SensitiveLog.java",
+      "cwe_id": "CWE-532",
+      "sink_line": 12,
+      "start_line": 11,
+      "end_line": 13,
+      "vulnerable": true
+    },
+    {
+      "id": "java-cmd-inject-001",
+      "language": "java",
+      "category": "security",
+      "relative_path": "datasets/java/command_injection/VulnerableCommand.java",
+      "cwe_id": "CWE-78",
+      "sink_line": 11,
+      "start_line": 10,
+      "end_line": 11,
+      "vulnerable": true
+    }
+  ]
+}

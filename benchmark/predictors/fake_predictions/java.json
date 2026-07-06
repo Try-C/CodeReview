@@ -1,0 +1,85 @@
+{
+  "description": "Fake Java predictions for baseline testing. Deliberately imperfect: 5 correct, 3 FP, 3 FN.",
+  "predictions": [
+    {
+      "relative_path": "datasets/java/sqli/VulnerableService.java",
+      "start_line": 14,
+      "end_line": 15,
+      "language": "java",
+      "category": "security",
+      "cwe_id": "CWE-89",
+      "risk_level": "High",
+      "fingerprint": "fake-java-sqli-001"
+    },
+    {
+      "relative_path": "datasets/java/hardcoded_key/HardcodedKey.java",
+      "start_line": 6,
+      "end_line": 6,
+      "language": "java",
+      "category": "security",
+      "cwe_id": "CWE-798",
+      "risk_level": "High",
+      "fingerprint": "fake-java-hardcoded-key-001"
+    },
+    {
+      "relative_path": "datasets/java/null_pointer/NullableService.java",
+      "start_line": 7,
+      "end_line": 8,
+      "language": "java",
+      "category": "security",
+      "cwe_id": "CWE-476",
+      "risk_level": "Medium",
+      "fingerprint": "fake-java-nullptr-001"
+    },
+    {
+      "relative_path": "datasets/java/transaction/MissingTransaction.java",
+      "start_line": 12,
+      "end_line": 15,
+      "language": "java",
+      "category": "security",
+      "cwe_id": "CWE-778",
+      "risk_level": "Medium",
+      "fingerprint": "fake-java-transaction-001"
+    },
+    {
+      "relative_path": "datasets/java/missing_auth/UnprotectedEndpoint.java",
+      "start_line": 7,
+      "end_line": 8,
+      "language": "java",
+      "category": "security",
+      "cwe_id": "CWE-862",
+      "risk_level": "High",
+      "fingerprint": "fake-java-missing-auth-001"
+    },
+    {
+      "relative_path": "datasets/java/sqli/SafeService.java",
+      "start_line": 12,
+      "end_line": 13,
+      "language": "java",
+      "category": "security",
+      "cwe_id": "CWE-89",
+      "risk_level": "High",
+      "fingerprint": "fake-java-fp-001"
+    },
+    {
+      "relative_path": "datasets/java/sqli/VulnerableService.java",
+      "start_line": 14,
+      "end_line": 15,
+      "language": "java",
+      "category": "security",
+      "cwe_id": "CWE-20",
+      "risk_level": "Medium",
+      "fingerprint": "fake-java-fp-002"
+    },
+    {
+      "relative_path": "datasets/java/missing_auth/SafeAuthenticated.java",
+      "start_line": 7,
+      "end_line": 8,
+      "language": "java",
+      "category": "security",
+      "cwe_id": "CWE-862",
+      "risk_level": "Medium",
+      "fingerprint": "fake-java-fp-003"
+    }
+  ]
+}

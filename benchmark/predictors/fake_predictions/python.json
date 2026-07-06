@@ -1,0 +1,85 @@
+{
+  "description": "Fake Python predictions for baseline testing. Deliberately imperfect: 5 correct, 3 FP, 3 FN.",
+  "predictions": [
+    {
+      "relative_path": "datasets/python/sqli/vulnerable_query.py",
+      "start_line": 8,
+      "end_line": 9,
+      "language": "python",
+      "category": "security",
+      "cwe_id": "CWE-89",
+      "risk_level": "High",
+      "fingerprint": "fake-python-sqli-001"
+    },
+    {
+      "relative_path": "datasets/python/command_injection/vulnerable_subprocess.py",
+      "start_line": 6,
+      "end_line": 6,
+      "language": "python",
+      "category": "security",
+      "cwe_id": "CWE-78",
+      "risk_level": "High",
+      "fingerprint": "fake-python-cmd-inject-001"
+    },
+    {
+      "relative_path": "datasets/python/insecure_deserialization/vulnerable_pickle.py",
+      "start_line": 5,
+      "end_line": 6,
+      "language": "python",
+      "category": "security",
+      "cwe_id": "CWE-502",
+      "risk_level": "High",
+      "fingerprint": "fake-python-deserialize-001"
+    },
+    {
+      "relative_path": "datasets/python/hardcoded_key/hardcoded_secret.py",
+      "start_line": 3,
+      "end_line": 3,
+      "language": "python",
+      "category": "security",
+      "cwe_id": "CWE-798",
+      "risk_level": "Medium",
+      "fingerprint": "fake-python-hardcoded-key-001"
+    },
+    {
+      "relative_path": "datasets/python/path_traversal/vulnerable_path.py",
+      "start_line": 7,
+      "end_line": 9,
+      "language": "python",
+      "category": "security",
+      "cwe_id": "CWE-22",
+      "risk_level": "Medium",
+      "fingerprint": "fake-python-path-traversal-001"
+    },
+    {
+      "relative_path": "datasets/python/sqli/safe_query.py",
+      "start_line": 7,
+      "end_line": 8,
+      "language": "python",
+      "category": "security",
+      "cwe_id": "CWE-89",
+      "risk_level": "High",
+      "fingerprint": "fake-python-fp-001"
+    },
+    {
+      "relative_path": "datasets/python/insecure_deserialization/vulnerable_pickle.py",
+      "start_line": 5,
+      "end_line": 6,
+      "language": "python",
+      "category": "security",
+      "cwe_id": "CWE-89",
+      "risk_level": "Medium",
+      "fingerprint": "fake-python-fp-002"
+    },
+    {
+      "relative_path": "datasets/python/exception_swallow/swallow_exception.py",
+      "start_line": 1,
+      "end_line": 3,
+      "language": "python",
+      "category": "security",
+      "cwe_id": "CWE-390",
+      "risk_level": "Low",
+      "fingerprint": "fake-python-fp-003"
+    }
+  ]
+}
