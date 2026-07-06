@@ -269,31 +269,54 @@ class HybridRetriever:
         retrieval_round: int,
         degradation_reason: str,
     ) -> HybridRetrievalResult:
-        """Fallback: keyword-only retrieval when embedding or vector search fails."""
+        """Fallback: keyword → ILIKE symbol (spec §11.4 degradation chain)."""
         async with self._sessions() as session:
             keyword_raw = await self._keyword_search(session, query, project_id, languages)
+            if keyword_raw is None:
+                keyword_raw = []
+            raw: list[tuple[int, float]] = list(keyword_raw)
 
-        if keyword_raw is None:
-            return HybridRetrievalResult(
-                chunks=(),
-                query_hash=query_hash,
-                vector_results=(),
-                keyword_results=(),
-                degradation=(degradation_reason, "keyword_search_failed"),
+            # Last resort: ILIKE on symbol names (spec 11.4)
+            symbol_used = False
+            if not raw:
+                raw = await self._keyword.search_symbol_ilike(
+                    session,
+                    query=query,
+                    project_id=project_id,
+                    languages=languages,
+                    top_k=self._top_k,
+                )
+                symbol_used = True
+
+            if not raw:
+                if symbol_used:
+                    return HybridRetrievalResult(
+                        chunks=(),
+                        query_hash=query_hash,
+                        vector_results=(),
+                        keyword_results=(),
+                        degradation=(
+                            degradation_reason,
+                            "keyword_search_failed",
+                            "symbol_ilike_no_match",
+                        ),
+                    )
+                return HybridRetrievalResult(
+                    chunks=(),
+                    query_hash=query_hash,
+                    vector_results=(),
+                    keyword_results=(),
+                    degradation=(degradation_reason, "keyword_search_failed"),
+                )
+
+            fused = raw[: self._top_k]
+            scored = await self._load_and_score(session, [], raw, fused)
+
+            ilike_degradation: tuple[str, ...] = (
+                (degradation_reason, "keyword_search_failed", "symbol_ilike_fallback")
+                if symbol_used
+                else (degradation_reason,)
             )
-
-        if not keyword_raw:
-            return HybridRetrievalResult(
-                chunks=(),
-                query_hash=query_hash,
-                vector_results=(),
-                keyword_results=(),
-                degradation=(degradation_reason,),
-            )
-
-        async with self._sessions() as session:
-            fused = keyword_raw[: self._top_k]
-            scored = await self._load_and_score(session, [], keyword_raw, fused)
 
         await self._write_trace(
             task_id=task_id,
@@ -302,7 +325,7 @@ class HybridRetriever:
             query_hash=query_hash,
             query_preview=query_preview,
             vector_raw=[],
-            keyword_raw=keyword_raw,
+            keyword_raw=raw,
             fused=fused,
             retrieval_round=retrieval_round,
         )
@@ -311,8 +334,8 @@ class HybridRetriever:
             chunks=scored,
             query_hash=query_hash,
             vector_results=(),
-            keyword_results=tuple(keyword_raw),
-            degradation=(degradation_reason,),
+            keyword_results=tuple(raw),
+            degradation=ilike_degradation,
         )
 
     async def _build_and_trace(

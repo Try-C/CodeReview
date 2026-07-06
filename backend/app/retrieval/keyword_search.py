@@ -1,4 +1,4 @@
-"""PostgreSQL full-text keyword search on code_chunks with SQLite fallback."""
+"""PostgreSQL full-text keyword search on code_chunks with SQLite and ILIKE fallback."""
 
 from collections.abc import Sequence
 
@@ -34,9 +34,31 @@ FALLBACK_SQL = """
     LIMIT :top_k
 """
 
+# Last-resort ILIKE fallback: match individual query terms against
+# symbol_name and qualified_name columns (spec 11.4 symbol/ILIKE).
+ILIKE_SYMBOL_SQL = """
+    SELECT id, 0.01 AS rank
+    FROM code_chunks
+    WHERE project_id = :project_id
+      AND language IN ({language_placeholders})
+      AND index_status = 'ready'
+      AND (
+        LOWER(symbol_name) LIKE '%' || LOWER(:term) || '%'
+        OR LOWER(qualified_name) LIKE '%' || LOWER(:term) || '%'
+      )
+    ORDER BY id
+    LIMIT :top_k
+"""
+
 
 class KeywordSearcher:
-    """Search the PostgreSQL full-text index without coupling to a tokenizer."""
+    """Search the PostgreSQL full-text index with progressive fallbacks.
+
+    Degradation order (per spec 11.4):
+        1. PostgreSQL tsvector / ts_rank
+        2. SQLite LIKE on search_text
+        3. ILIKE on symbol_name / qualified_name (last resort)
+    """
 
     async def search(
         self,
@@ -56,6 +78,35 @@ class KeywordSearcher:
         if dialect_name == "postgresql":
             return await self._search_postgresql(session, query, project_id, languages, top_k)
         return await self._search_fallback(session, query, project_id, languages, top_k)
+
+    async def search_symbol_ilike(
+        self,
+        session: AsyncSession,
+        *,
+        query: str,
+        project_id: int,
+        languages: Sequence[str] = ("java", "python"),
+        top_k: int = 10,
+    ) -> list[tuple[int, float]]:
+        """Last-resort ILIKE match on symbol_name / qualified_name (spec 11.4)."""
+        if top_k < 1 or not query.strip():
+            return []
+
+        lang_list = list(languages)
+        placeholders = ", ".join(f":lang_{i}" for i in range(len(lang_list)))
+        params: dict[str, object] = {
+            "term": query.strip().split()[0] if query.strip() else query.strip(),
+            "project_id": project_id,
+            "top_k": top_k,
+        }
+        for i, lang in enumerate(lang_list):
+            params[f"lang_{i}"] = lang
+
+        result = await session.execute(
+            text(ILIKE_SYMBOL_SQL.format(language_placeholders=placeholders)),
+            params,
+        )
+        return [(int(row.id), float(row.rank)) for row in result]
 
     async def _search_postgresql(
         self,
