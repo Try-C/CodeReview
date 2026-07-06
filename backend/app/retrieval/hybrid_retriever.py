@@ -6,6 +6,7 @@ from dataclasses import dataclass
 from hashlib import sha256
 
 from sqlalchemy import select
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
 from app.indexing.provider import EmbeddingProvider, EmbeddingProviderError
@@ -43,9 +44,9 @@ class HybridRetriever:
     """Embed the query once, run both searches, fuse with RRF, and persist trace.
 
     Degradation chain (per spec §11.4):
-        Embedding failure → keyword-only
+        Embedding failure  → keyword-only (after one retry)
         Vector search failure → keyword-only
-        Both fail → empty result with degradation recorded
+        Keyword search failure → empty result with degradation recorded
     """
 
     def __init__(
@@ -66,6 +67,10 @@ class HybridRetriever:
         self._max_top_k = max_top_k
         self._vector = VectorSearcher()
         self._keyword = KeywordSearcher()
+
+    # ------------------------------------------------------------------
+    # Public entry point
+    # ------------------------------------------------------------------
 
     async def retrieve(
         self,
@@ -88,8 +93,10 @@ class HybridRetriever:
 
         query_hash = sha256(query.encode("utf-8")).hexdigest()
         query_preview = query.strip()[:256]
+        # Normalise NULL to empty string so the DB unique constraint works.
+        item_key = review_item_key or ""
 
-        # --- Degradation chain: embedding ---
+        # --- Degradation chain: embedding (with one retry) ---
         query_vector = await self._embed_query(query)
         if query_vector is None:
             return await self._keyword_only(
@@ -99,59 +106,233 @@ class HybridRetriever:
                 query_hash=query_hash,
                 query_preview=query_preview,
                 languages=languages,
-                review_item_key=review_item_key,
+                review_item_key=item_key,
                 retrieval_round=retrieval_round,
                 degradation_reason="embedding_failed",
             )
 
-        # --- Vector + Keyword parallel search ---
+        # --- Vector + Keyword parallel search (single session) ---
         async with self._sessions() as session:
             vector_raw = await self._vector_search(session, query_vector, project_id, languages)
-            keyword_raw = await self._keyword.search(
+            keyword_raw = await self._keyword_search(session, query, project_id, languages)
+
+            # --- Degradation: both failed ---
+            if vector_raw is None and keyword_raw is None:
+                return HybridRetrievalResult(
+                    chunks=(),
+                    query_hash=query_hash,
+                    vector_results=(),
+                    keyword_results=(),
+                    degradation=("vector_search_failed", "keyword_search_failed"),
+                )
+
+            # --- Degradation: vector failed → keyword-only ---
+            if vector_raw is None:
+                return await self._build_and_trace(
+                    session=session,
+                    task_id=task_id,
+                    project_id=project_id,
+                    query_hash=query_hash,
+                    query_preview=query_preview,
+                    review_item_key=item_key,
+                    retrieval_round=retrieval_round,
+                    vector_raw=[],
+                    keyword_raw=keyword_raw or [],
+                    top_k_override=self._top_k,
+                    degradation_reason="vector_search_failed",
+                )
+
+            # --- Degradation: keyword failed → vector-only via RRF ---
+            if keyword_raw is None:
+                fused = fuse_rrf([vector_raw], k=self._rrf_k, top_k=self._top_k)
+                scored = await self._load_and_score(session, vector_raw, [], fused)
+                await self._write_trace(
+                    task_id=task_id,
+                    project_id=project_id,
+                    review_item_key=item_key,
+                    query_hash=query_hash,
+                    query_preview=query_preview,
+                    vector_raw=vector_raw,
+                    keyword_raw=[],
+                    fused=fused,
+                    retrieval_round=retrieval_round,
+                )
+                return HybridRetrievalResult(
+                    chunks=scored,
+                    query_hash=query_hash,
+                    vector_results=tuple(vector_raw),
+                    keyword_results=(),
+                    degradation=("keyword_search_failed",),
+                )
+
+            # --- Normal path: RRF fusion ---
+            fused = fuse_rrf(
+                [vector_raw, keyword_raw],
+                k=self._rrf_k,
+                top_k=self._top_k,
+            )
+            scored = await self._load_and_score(session, vector_raw, keyword_raw, fused)
+
+        await self._write_trace(
+            task_id=task_id,
+            project_id=project_id,
+            review_item_key=item_key,
+            query_hash=query_hash,
+            query_preview=query_preview,
+            vector_raw=vector_raw,
+            keyword_raw=keyword_raw,
+            fused=fused,
+            retrieval_round=retrieval_round,
+        )
+
+        return HybridRetrievalResult(
+            chunks=scored,
+            query_hash=query_hash,
+            vector_results=tuple(vector_raw),
+            keyword_results=tuple(keyword_raw),
+        )
+
+    # ------------------------------------------------------------------
+    # Degradation helpers
+    # ------------------------------------------------------------------
+
+    async def _embed_query(self, query: str) -> list[float] | None:
+        """Embed with one retry; return None on persistent failure."""
+        for attempt in (1, 2):
+            try:
+                vectors = await self._provider.embed([query.strip()], text_type="query")
+                if vectors and len(vectors[0]) == self._provider.dimension:
+                    return vectors[0]
+                if attempt == 1:
+                    logger.warning("retrieval_embedding_invalid_response_retry")
+                    continue
+                logger.warning("retrieval_embedding_invalid_response")
+                return None
+            except (EmbeddingProviderError, Exception) as exc:
+                if attempt == 1:
+                    logger.warning("retrieval_embedding_retry", extra={"error": str(exc)[:128]})
+                    continue
+                logger.warning("retrieval_embedding_failed", extra={"error": str(exc)[:128]})
+                return None
+        return None
+
+    async def _vector_search(
+        self,
+        session: AsyncSession,
+        query_vector: list[float],
+        project_id: int,
+        languages: Sequence[str],
+    ) -> list[tuple[int, float]] | None:
+        """Run vector search; return None on failure so caller can degrade."""
+        try:
+            return await self._vector.search(
+                session,
+                query_vector=query_vector,
+                project_id=project_id,
+                languages=languages,
+                top_k=self._max_top_k,
+            )
+        except Exception as exc:
+            logger.warning("retrieval_vector_search_failed", extra={"error": str(exc)[:128]})
+            return None
+
+    async def _keyword_search(
+        self,
+        session: AsyncSession,
+        query: str,
+        project_id: int,
+        languages: Sequence[str],
+    ) -> list[tuple[int, float]] | None:
+        """Run keyword search; return None on failure so caller can degrade."""
+        try:
+            return await self._keyword.search(
                 session,
                 query=query.strip(),
                 project_id=project_id,
                 languages=languages,
                 top_k=self._max_top_k,
             )
+        except Exception as exc:
+            logger.warning("retrieval_keyword_search_failed", extra={"error": str(exc)[:128]})
+            return None
 
-        # --- Degradation chain: vector search ---
-        if vector_raw is None:
-            return await self._keyword_only(
-                task_id=task_id,
-                project_id=project_id,
-                query=query,
+    async def _keyword_only(
+        self,
+        *,
+        task_id: int,
+        project_id: int,
+        query: str,
+        query_hash: str,
+        query_preview: str,
+        languages: Sequence[str],
+        review_item_key: str,
+        retrieval_round: int,
+        degradation_reason: str,
+    ) -> HybridRetrievalResult:
+        """Fallback: keyword-only retrieval when embedding or vector search fails."""
+        async with self._sessions() as session:
+            keyword_raw = await self._keyword_search(session, query, project_id, languages)
+
+        if keyword_raw is None:
+            return HybridRetrievalResult(
+                chunks=(),
                 query_hash=query_hash,
-                query_preview=query_preview,
-                languages=languages,
-                review_item_key=review_item_key,
-                retrieval_round=retrieval_round,
-                degradation_reason="vector_search_failed",
+                vector_results=(),
+                keyword_results=(),
+                degradation=(degradation_reason, "keyword_search_failed"),
             )
 
-        # --- RRF fusion ---
-        fused = fuse_rrf(
-            [vector_raw, keyword_raw],
-            k=self._rrf_k,
-            top_k=self._top_k,
-        )
-
-        chunk_ids = [chunk_id for chunk_id, _ in fused]
-        chunks = await self._load_chunks(session, chunk_ids, fused)
-
-        vector_ranks = self._rank_map(vector_raw)
-        keyword_ranks = self._rank_map(keyword_raw)
-
-        scored = tuple(
-            ScoredChunk(
-                chunk=chunks[chunk_id],
-                rrf_score=score,
-                vector_rank=vector_ranks.get(chunk_id),
-                keyword_rank=keyword_ranks.get(chunk_id),
+        if not keyword_raw:
+            return HybridRetrievalResult(
+                chunks=(),
+                query_hash=query_hash,
+                vector_results=(),
+                keyword_results=(),
+                degradation=(degradation_reason,),
             )
-            for chunk_id, score in fused
-            if chunk_id in chunks
+
+        async with self._sessions() as session:
+            fused = keyword_raw[: self._top_k]
+            scored = await self._load_and_score(session, [], keyword_raw, fused)
+
+        await self._write_trace(
+            task_id=task_id,
+            project_id=project_id,
+            review_item_key=review_item_key,
+            query_hash=query_hash,
+            query_preview=query_preview,
+            vector_raw=[],
+            keyword_raw=keyword_raw,
+            fused=fused,
+            retrieval_round=retrieval_round,
         )
+
+        return HybridRetrievalResult(
+            chunks=scored,
+            query_hash=query_hash,
+            vector_results=(),
+            keyword_results=tuple(keyword_raw),
+            degradation=(degradation_reason,),
+        )
+
+    async def _build_and_trace(
+        self,
+        *,
+        session: AsyncSession,
+        task_id: int,
+        project_id: int,
+        query_hash: str,
+        query_preview: str,
+        review_item_key: str,
+        retrieval_round: int,
+        vector_raw: list[tuple[int, float]],
+        keyword_raw: list[tuple[int, float]],
+        top_k_override: int,
+        degradation_reason: str,
+    ) -> HybridRetrievalResult:
+        """Build scored chunks + trace inside the caller's session."""
+        fused = keyword_raw[:top_k_override]
+        scored = await self._load_and_score(session, [], keyword_raw, fused)
 
         await self._write_trace(
             task_id=task_id,
@@ -170,103 +351,36 @@ class HybridRetriever:
             query_hash=query_hash,
             vector_results=tuple(vector_raw),
             keyword_results=tuple(keyword_raw),
+            degradation=(degradation_reason,),
         )
 
-    async def _embed_query(self, query: str) -> list[float] | None:
-        try:
-            vectors = await self._provider.embed([query.strip()], text_type="query")
-            if not vectors or len(vectors[0]) != self._provider.dimension:
-                logger.warning("retrieval_embedding_invalid_response")
-                return None
-            return vectors[0]
-        except (EmbeddingProviderError, Exception) as exc:
-            logger.warning("retrieval_embedding_failed", extra={"error": str(exc)[:128]})
-            return None
+    # ------------------------------------------------------------------
+    # Shared helpers (all session-safe)
+    # ------------------------------------------------------------------
 
-    async def _vector_search(
+    async def _load_and_score(
         self,
         session: AsyncSession,
-        query_vector: list[float],
-        project_id: int,
-        languages: Sequence[str],
-    ) -> list[tuple[int, float]] | None:
-        try:
-            return await self._vector.search(
-                session,
-                query_vector=query_vector,
-                project_id=project_id,
-                languages=languages,
-                top_k=self._max_top_k,
-            )
-        except Exception as exc:
-            logger.warning("retrieval_vector_search_failed", extra={"error": str(exc)[:128]})
-            return None
+        vector_raw: list[tuple[int, float]],
+        keyword_raw: list[tuple[int, float]],
+        fused: list[tuple[int, float]],
+    ) -> tuple[ScoredChunk, ...]:
+        """Load chunks and build ScoredChunk objects using a live session."""
+        chunk_ids = [chunk_id for chunk_id, _ in fused]
+        chunks = await self._load_chunks(session, chunk_ids, fused)
 
-    async def _keyword_only(
-        self,
-        *,
-        task_id: int,
-        project_id: int,
-        query: str,
-        query_hash: str,
-        query_preview: str,
-        languages: Sequence[str],
-        review_item_key: str | None,
-        retrieval_round: int,
-        degradation_reason: str,
-    ) -> HybridRetrievalResult:
-        """Fallback: keyword-only retrieval when embedding or vector search fails."""
-        async with self._sessions() as session:
-            keyword_raw = await self._keyword.search(
-                session,
-                query=query.strip(),
-                project_id=project_id,
-                languages=languages,
-                top_k=self._top_k,
-            )
-
-        if not keyword_raw:
-            return HybridRetrievalResult(
-                chunks=(),
-                query_hash=query_hash,
-                vector_results=(),
-                keyword_results=(),
-                degradation=(degradation_reason,),
-            )
-
-        chunk_ids = [chunk_id for chunk_id, _ in keyword_raw]
-        chunks = await self._load_chunks(session, chunk_ids, keyword_raw)
+        vector_ranks = self._rank_map(vector_raw)
         keyword_ranks = self._rank_map(keyword_raw)
 
-        scored = tuple(
+        return tuple(
             ScoredChunk(
                 chunk=chunks[chunk_id],
-                rrf_score=0.0,
-                vector_rank=None,
+                rrf_score=score,
+                vector_rank=vector_ranks.get(chunk_id),
                 keyword_rank=keyword_ranks.get(chunk_id),
             )
-            for chunk_id, _ in keyword_raw
+            for chunk_id, score in fused
             if chunk_id in chunks
-        )
-
-        await self._write_trace(
-            task_id=task_id,
-            project_id=project_id,
-            review_item_key=review_item_key,
-            query_hash=query_hash,
-            query_preview=query_preview,
-            vector_raw=[],
-            keyword_raw=keyword_raw,
-            fused=keyword_raw[: self._top_k],
-            retrieval_round=retrieval_round,
-        )
-
-        return HybridRetrievalResult(
-            chunks=scored,
-            query_hash=query_hash,
-            vector_results=(),
-            keyword_results=tuple(keyword_raw),
-            degradation=(degradation_reason,),
         )
 
     async def _load_chunks(
@@ -283,7 +397,7 @@ class HybridRetriever:
         *,
         task_id: int,
         project_id: int,
-        review_item_key: str | None,
+        review_item_key: str,
         query_hash: str,
         query_preview: str,
         vector_raw: list[tuple[int, float]],
@@ -291,13 +405,16 @@ class HybridRetriever:
         fused: list[tuple[int, float]],
         retrieval_round: int,
     ) -> None:
-        """Write trace records; duplicate keys on retry are silently ignored."""
+        """Write trace records; IntegrityError (duplicate) is silently tolerated."""
         selected_ids = {chunk_id for chunk_id, _ in fused}
         vector_ranks = self._rank_map(vector_raw)
         keyword_ranks = self._rank_map(keyword_raw)
         all_ids = {chunk_id for chunk_id, _ in vector_raw} | {
             chunk_id for chunk_id, _ in keyword_raw
         }
+
+        if not all_ids:
+            return
 
         try:
             async with self._sessions.begin() as session:
@@ -317,9 +434,10 @@ class HybridRetriever:
                             retrieval_round=retrieval_round,
                         )
                     )
-        except Exception:
+        except IntegrityError:
+            await session.rollback()
             logger.debug(
-                "retrieval_trace_write_skipped",
+                "retrieval_trace_duplicate_skipped",
                 extra={"task_id": task_id, "query_hash": query_hash},
             )
 

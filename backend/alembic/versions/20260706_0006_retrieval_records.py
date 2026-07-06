@@ -27,7 +27,7 @@ def upgrade() -> None:
         sa.Column("id", PRIMARY_KEY, autoincrement=True, nullable=False),
         sa.Column("task_id", FOREIGN_KEY, nullable=False),
         sa.Column("project_id", FOREIGN_KEY, nullable=False),
-        sa.Column("review_item_key", sa.String(length=128)),
+        sa.Column("review_item_key", sa.String(length=128), nullable=False, server_default=""),
         sa.Column("query_hash", sa.String(length=64), nullable=False),
         sa.Column("query_preview", sa.String(length=256)),
         sa.Column("chunk_id", FOREIGN_KEY),

@@ -45,7 +45,9 @@ class RetrievalRecord(Base):
     project_id: Mapped[int] = mapped_column(
         FOREIGN_KEY, ForeignKey("projects.id", ondelete="CASCADE"), nullable=False
     )
-    review_item_key: Mapped[str | None] = mapped_column(String(128))
+    review_item_key: Mapped[str] = mapped_column(
+        String(128), nullable=False, default="", server_default=""
+    )
     query_hash: Mapped[str] = mapped_column(String(64), nullable=False)
     query_preview: Mapped[str | None] = mapped_column(String(256))
     chunk_id: Mapped[int | None] = mapped_column(
