@@ -33,6 +33,8 @@ from benchmark.runner import (  # noqa: E402
     match_predictions,
 )
 
+from benchmark.experiments import _summarize_telemetry, run_experiments  # noqa: E402
+
 # ── Path helpers ────────────────────────────────────────────────────────────
 
 _GT_DIR = str(_PROJECT_ROOT / "benchmark" / "ground_truth")
@@ -550,3 +552,83 @@ class TestGroundTruthIntegrity:
         )
 
         assert source[entry.sink_line - 1].lstrip().startswith("assert ")
+
+
+class TestAblationExperiments:
+    def test_checked_in_manifest_runs_all_required_groups(self) -> None:
+        manifest = _PROJECT_ROOT / "benchmark" / "ablation_manifest.json"
+
+        result = run_experiments(manifest)
+
+        assert result["benchmark_kind"] == "offline_reference_snapshot"
+        assert result["repetitions"] == 3
+        assert {group["id"] for group in result["groups"]} == {
+            "retrieval",
+            "validation",
+            "chunking",
+            "rounds",
+        }
+
+    def test_reference_results_are_language_complete_and_mark_telemetry_unavailable(
+        self,
+    ) -> None:
+        manifest = _PROJECT_ROOT / "benchmark" / "ablation_manifest.json"
+
+        result = run_experiments(manifest)
+
+        for group in result["groups"]:
+            assert len(group["variants"]) == 3
+            for variant in group["variants"]:
+                assert set(variant["languages"]) == {"java", "python"}
+                assert variant["telemetry"]["status"] == "unavailable"
+                assert variant["telemetry"]["mean_estimated_cost"] is None
+
+    def test_reference_snapshot_has_expected_baseline(self) -> None:
+        manifest = _PROJECT_ROOT / "benchmark" / "ablation_manifest.json"
+
+        result = run_experiments(manifest)
+        hybrid = next(
+            variant
+            for group in result["groups"]
+            if group["id"] == "retrieval"
+            for variant in group["variants"]
+            if variant["name"] == "hybrid_rrf"
+        )
+
+        assert hybrid["languages"]["java"]["counts"] == {"tp": 5, "fp": 3, "fn": 3}
+        assert hybrid["languages"]["python"]["counts"] == {"tp": 5, "fp": 3, "fn": 3}
+        assert hybrid["macro_metrics"]["f1"]["mean"] == pytest.approx(0.625)
+
+    def test_formal_telemetry_uses_decimal_cost_and_versioned_pricing(self) -> None:
+        trials = {
+            "java": [
+                {
+                    "latency_ms": latency,
+                    "input_tokens": 100,
+                    "output_tokens": 20,
+                    "estimated_cost": cost,
+                    "currency": "USD",
+                    "pricing_version": "2026-07",
+                }
+                for latency, cost in ((10, "0.10"), (20, "0.12"), (30, "0.14"))
+            ],
+            "python": [
+                {
+                    "latency_ms": latency,
+                    "input_tokens": 200,
+                    "output_tokens": 40,
+                    "estimated_cost": cost,
+                    "currency": "USD",
+                    "pricing_version": "2026-07",
+                }
+                for latency, cost in ((40, "0.16"), (50, "0.18"), (60, "0.20"))
+            ],
+        }
+
+        result = _summarize_telemetry(trials, ("java", "python"), 3, "unused")
+
+        assert result["status"] == "available"
+        assert result["p95_latency_ms"] == 60
+        assert result["mean_input_tokens"] == 150
+        assert result["mean_estimated_cost"] == "0.15"
+        assert result["pricing_version"] == "2026-07"

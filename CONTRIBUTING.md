@@ -64,7 +64,15 @@ python -m ruff check ../benchmark --exclude ../benchmark/datasets
 python -m ruff format --check ../benchmark --exclude ../benchmark/datasets
 python -m mypy ../benchmark
 python -m pytest tests/unit/test_benchmark.py --no-cov
+$env:PYTHONPATH = ".."
+python -m benchmark.experiments --output ../benchmark/results/reference-ablation.json
 ```
+
+The checked-in ablation manifest uses deterministic fixture predictions, never
+paid APIs. Its generated result is reproducible and explicitly marks provider
+latency, token usage, and cost as unavailable. Formal model runs must export
+versioned predictions and immutable pricing telemetry before their numbers may
+be added to project documentation.
 
 Frontend commands are run from `frontend/` with Node.js 24 and pnpm 11:
 

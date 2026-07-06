@@ -14,7 +14,7 @@ import { RouterView } from 'vue-router'
         </span>
       </RouterLink>
 
-      <ElTag effect="plain" type="info">Module 01</ElTag>
+      <ElTag effect="plain" type="success">P0 · Module 12</ElTag>
     </header>
 
     <main class="main-content">

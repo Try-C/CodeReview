@@ -1,0 +1,143 @@
+{
+  "schema_version": 1,
+  "benchmark_kind": "offline_reference_snapshot",
+  "disclaimer": "Deterministic fixture predictions validate the evaluation and ablation machinery. These numbers are not DeepSeek model performance.",
+  "dataset_version": "internal-smoke-v1.0.0",
+  "prediction_snapshot_version": "fake-baseline-v1.0.0",
+  "languages": ["java", "python"],
+  "repetitions": 3,
+  "ground_truth_dir": "ground_truth",
+  "dataset_dir": "datasets",
+  "prediction_dir": "predictors/fake_predictions",
+  "telemetry_unavailable_reason": "Fixture snapshots contain no provider latency, token usage, or immutable pricing snapshot.",
+  "fixed_parameters": {
+    "model": "fixture-snapshot-not-an-llm",
+    "temperature": 0,
+    "prompt_version": "not_applicable",
+    "dataset_version": "internal-smoke-v1.0.0",
+    "embedding_model": "not_applicable",
+    "top_k": 10
+  },
+  "groups": [
+    {
+      "id": "retrieval",
+      "title": "Retrieval strategy reference",
+      "variants": [
+        {
+          "name": "keyword",
+          "description": "Reference subset representing keyword-only candidates.",
+          "include_fingerprints": {
+            "java": ["fake-java-sqli-001", "fake-java-hardcoded-key-001", "fake-java-fp-001", "fake-java-fp-002"],
+            "python": ["fake-python-sqli-001", "fake-python-cmd-inject-001", "fake-python-fp-001", "fake-python-fp-002"]
+          }
+        },
+        {
+          "name": "vector",
+          "description": "Reference subset representing vector-only candidates.",
+          "include_fingerprints": {
+            "java": ["fake-java-sqli-001", "fake-java-nullptr-001", "fake-java-transaction-001", "fake-java-fp-002", "fake-java-fp-003"],
+            "python": ["fake-python-sqli-001", "fake-python-deserialize-001", "fake-python-hardcoded-key-001", "fake-python-fp-002", "fake-python-fp-003"]
+          }
+        },
+        {
+          "name": "hybrid_rrf",
+          "description": "Complete reference snapshot representing fused candidates.",
+          "include_fingerprints": {
+            "java": ["fake-java-sqli-001", "fake-java-hardcoded-key-001", "fake-java-nullptr-001", "fake-java-transaction-001", "fake-java-missing-auth-001", "fake-java-fp-001", "fake-java-fp-002", "fake-java-fp-003"],
+            "python": ["fake-python-sqli-001", "fake-python-cmd-inject-001", "fake-python-deserialize-001", "fake-python-hardcoded-key-001", "fake-python-path-traversal-001", "fake-python-fp-001", "fake-python-fp-002", "fake-python-fp-003"]
+          }
+        }
+      ]
+    },
+    {
+      "id": "validation",
+      "title": "Validation pipeline reference",
+      "variants": [
+        {
+          "name": "review_only",
+          "description": "Unfiltered review snapshot.",
+          "include_fingerprints": {
+            "java": ["fake-java-sqli-001", "fake-java-hardcoded-key-001", "fake-java-nullptr-001", "fake-java-transaction-001", "fake-java-missing-auth-001", "fake-java-fp-001", "fake-java-fp-002", "fake-java-fp-003"],
+            "python": ["fake-python-sqli-001", "fake-python-cmd-inject-001", "fake-python-deserialize-001", "fake-python-hardcoded-key-001", "fake-python-path-traversal-001", "fake-python-fp-001", "fake-python-fp-002", "fake-python-fp-003"]
+          }
+        },
+        {
+          "name": "review_critic",
+          "description": "Reference snapshot after one semantic rejection.",
+          "include_fingerprints": {
+            "java": ["fake-java-sqli-001", "fake-java-hardcoded-key-001", "fake-java-nullptr-001", "fake-java-transaction-001", "fake-java-missing-auth-001", "fake-java-fp-001", "fake-java-fp-003"],
+            "python": ["fake-python-sqli-001", "fake-python-cmd-inject-001", "fake-python-deserialize-001", "fake-python-hardcoded-key-001", "fake-python-path-traversal-001", "fake-python-fp-001", "fake-python-fp-003"]
+          }
+        },
+        {
+          "name": "review_evidence_critic",
+          "description": "Reference snapshot after deterministic evidence and semantic checks.",
+          "include_fingerprints": {
+            "java": ["fake-java-sqli-001", "fake-java-hardcoded-key-001", "fake-java-nullptr-001", "fake-java-transaction-001", "fake-java-missing-auth-001"],
+            "python": ["fake-python-sqli-001", "fake-python-cmd-inject-001", "fake-python-deserialize-001", "fake-python-hardcoded-key-001", "fake-python-path-traversal-001"]
+          }
+        }
+      ]
+    },
+    {
+      "id": "chunking",
+      "title": "Chunking strategy reference",
+      "variants": [
+        {
+          "name": "line_window",
+          "description": "Reference candidates available with line windows.",
+          "include_fingerprints": {
+            "java": ["fake-java-sqli-001", "fake-java-hardcoded-key-001", "fake-java-fp-001", "fake-java-fp-002"],
+            "python": ["fake-python-sqli-001", "fake-python-cmd-inject-001", "fake-python-fp-001", "fake-python-fp-002"]
+          }
+        },
+        {
+          "name": "ast",
+          "description": "Reference candidates available with AST chunks.",
+          "include_fingerprints": {
+            "java": ["fake-java-sqli-001", "fake-java-hardcoded-key-001", "fake-java-nullptr-001", "fake-java-transaction-001", "fake-java-fp-001", "fake-java-fp-002"],
+            "python": ["fake-python-sqli-001", "fake-python-cmd-inject-001", "fake-python-deserialize-001", "fake-python-hardcoded-key-001", "fake-python-fp-001", "fake-python-fp-002"]
+          }
+        },
+        {
+          "name": "ast_neighbors",
+          "description": "Complete reference snapshot with neighboring context.",
+          "include_fingerprints": {
+            "java": ["fake-java-sqli-001", "fake-java-hardcoded-key-001", "fake-java-nullptr-001", "fake-java-transaction-001", "fake-java-missing-auth-001", "fake-java-fp-001", "fake-java-fp-002", "fake-java-fp-003"],
+            "python": ["fake-python-sqli-001", "fake-python-cmd-inject-001", "fake-python-deserialize-001", "fake-python-hardcoded-key-001", "fake-python-path-traversal-001", "fake-python-fp-001", "fake-python-fp-002", "fake-python-fp-003"]
+          }
+        }
+      ]
+    },
+    {
+      "id": "rounds",
+      "title": "Review round reference",
+      "variants": [
+        {
+          "name": "round_1",
+          "description": "First three ranked reference findings.",
+          "include_fingerprints": {
+            "java": ["fake-java-sqli-001", "fake-java-hardcoded-key-001", "fake-java-nullptr-001"],
+            "python": ["fake-python-sqli-001", "fake-python-cmd-inject-001", "fake-python-deserialize-001"]
+          }
+        },
+        {
+          "name": "round_2",
+          "description": "First six ranked reference findings.",
+          "include_fingerprints": {
+            "java": ["fake-java-sqli-001", "fake-java-hardcoded-key-001", "fake-java-nullptr-001", "fake-java-transaction-001", "fake-java-missing-auth-001", "fake-java-fp-001"],
+            "python": ["fake-python-sqli-001", "fake-python-cmd-inject-001", "fake-python-deserialize-001", "fake-python-hardcoded-key-001", "fake-python-path-traversal-001", "fake-python-fp-001"]
+          }
+        },
+        {
+          "name": "round_3",
+          "description": "Complete ranked reference snapshot.",
+          "include_fingerprints": {
+            "java": ["fake-java-sqli-001", "fake-java-hardcoded-key-001", "fake-java-nullptr-001", "fake-java-transaction-001", "fake-java-missing-auth-001", "fake-java-fp-001", "fake-java-fp-002", "fake-java-fp-003"],
+            "python": ["fake-python-sqli-001", "fake-python-cmd-inject-001", "fake-python-deserialize-001", "fake-python-hardcoded-key-001", "fake-python-path-traversal-001", "fake-python-fp-001", "fake-python-fp-002", "fake-python-fp-003"]
+          }
+        }
+      ]
+    }
+  ]
+}

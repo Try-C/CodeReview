@@ -1,0 +1,1543 @@
+{
+  "schema_version": 1,
+  "benchmark_kind": "offline_reference_snapshot",
+  "disclaimer": "Deterministic fixture predictions validate the evaluation and ablation machinery. These numbers are not DeepSeek model performance.",
+  "dataset_version": "internal-smoke-v1.0.0",
+  "prediction_snapshot_version": "fake-baseline-v1.0.0",
+  "manifest_sha256": "75c3f233421e96a20df6538190e9715664bf780bc31e9fe522d62952e0352748",
+  "repetitions": 3,
+  "fixed_parameters": {
+    "model": "fixture-snapshot-not-an-llm",
+    "temperature": 0,
+    "prompt_version": "not_applicable",
+    "dataset_version": "internal-smoke-v1.0.0",
+    "embedding_model": "not_applicable",
+    "top_k": 10
+  },
+  "groups": [
+    {
+      "id": "retrieval",
+      "title": "Retrieval strategy reference",
+      "variants": [
+        {
+          "name": "keyword",
+          "description": "Reference subset representing keyword-only candidates.",
+          "languages": {
+            "java": {
+              "counts": {
+                "tp": 2,
+                "fp": 2,
+                "fn": 6
+              },
+              "metrics": {
+                "precision": {
+                  "mean": 0.5,
+                  "std": 0.0
+                },
+                "recall": {
+                  "mean": 0.25,
+                  "std": 0.0
+                },
+                "f1": {
+                  "mean": 0.3333333333333333,
+                  "std": 0.0
+                },
+                "high_risk_fp_rate": {
+                  "mean": 0.3333333333333333,
+                  "std": 0.0
+                },
+                "effective_localization_rate": {
+                  "mean": 1.0,
+                  "std": 0.0
+                }
+              },
+              "recall_at_k": {
+                "5": {
+                  "mean": 0.25,
+                  "std": 0.0
+                },
+                "10": {
+                  "mean": 0.25,
+                  "std": 0.0
+                },
+                "20": {
+                  "mean": 0.25,
+                  "std": 0.0
+                }
+              }
+            },
+            "python": {
+              "counts": {
+                "tp": 2,
+                "fp": 2,
+                "fn": 6
+              },
+              "metrics": {
+                "precision": {
+                  "mean": 0.5,
+                  "std": 0.0
+                },
+                "recall": {
+                  "mean": 0.25,
+                  "std": 0.0
+                },
+                "f1": {
+                  "mean": 0.3333333333333333,
+                  "std": 0.0
+                },
+                "high_risk_fp_rate": {
+                  "mean": 0.3333333333333333,
+                  "std": 0.0
+                },
+                "effective_localization_rate": {
+                  "mean": 1.0,
+                  "std": 0.0
+                }
+              },
+              "recall_at_k": {
+                "5": {
+                  "mean": 0.25,
+                  "std": 0.0
+                },
+                "10": {
+                  "mean": 0.25,
+                  "std": 0.0
+                },
+                "20": {
+                  "mean": 0.25,
+                  "std": 0.0
+                }
+              }
+            }
+          },
+          "macro_metrics": {
+            "precision": {
+              "mean": 0.5,
+              "std": 0.0
+            },
+            "recall": {
+              "mean": 0.25,
+              "std": 0.0
+            },
+            "f1": {
+              "mean": 0.3333333333333333,
+              "std": 0.0
+            },
+            "high_risk_fp_rate": {
+              "mean": 0.3333333333333333,
+              "std": 0.0
+            },
+            "effective_localization_rate": {
+              "mean": 1.0,
+              "std": 0.0
+            }
+          },
+          "telemetry": {
+            "status": "unavailable",
+            "mean_latency_ms": null,
+            "p95_latency_ms": null,
+            "mean_input_tokens": null,
+            "mean_output_tokens": null,
+            "mean_estimated_cost": null,
+            "currency": null,
+            "pricing_version": null,
+            "reason": "Fixture snapshots contain no provider latency, token usage, or immutable pricing snapshot."
+          }
+        },
+        {
+          "name": "vector",
+          "description": "Reference subset representing vector-only candidates.",
+          "languages": {
+            "java": {
+              "counts": {
+                "tp": 3,
+                "fp": 2,
+                "fn": 5
+              },
+              "metrics": {
+                "precision": {
+                  "mean": 0.6,
+                  "std": 0.0
+                },
+                "recall": {
+                  "mean": 0.375,
+                  "std": 0.0
+                },
+                "f1": {
+                  "mean": 0.4615384615384615,
+                  "std": 0.0
+                },
+                "high_risk_fp_rate": {
+                  "mean": 0.0,
+                  "std": 0.0
+                },
+                "effective_localization_rate": {
+                  "mean": 1.0,
+                  "std": 0.0
+                }
+              },
+              "recall_at_k": {
+                "5": {
+                  "mean": 0.375,
+                  "std": 0.0
+                },
+                "10": {
+                  "mean": 0.375,
+                  "std": 0.0
+                },
+                "20": {
+                  "mean": 0.375,
+                  "std": 0.0
+                }
+              }
+            },
+            "python": {
+              "counts": {
+                "tp": 3,
+                "fp": 2,
+                "fn": 5
+              },
+              "metrics": {
+                "precision": {
+                  "mean": 0.6,
+                  "std": 0.0
+                },
+                "recall": {
+                  "mean": 0.375,
+                  "std": 0.0
+                },
+                "f1": {
+                  "mean": 0.4615384615384615,
+                  "std": 0.0
+                },
+                "high_risk_fp_rate": {
+                  "mean": 0.0,
+                  "std": 0.0
+                },
+                "effective_localization_rate": {
+                  "mean": 1.0,
+                  "std": 0.0
+                }
+              },
+              "recall_at_k": {
+                "5": {
+                  "mean": 0.375,
+                  "std": 0.0
+                },
+                "10": {
+                  "mean": 0.375,
+                  "std": 0.0
+                },
+                "20": {
+                  "mean": 0.375,
+                  "std": 0.0
+                }
+              }
+            }
+          },
+          "macro_metrics": {
+            "precision": {
+              "mean": 0.6,
+              "std": 0.0
+            },
+            "recall": {
+              "mean": 0.375,
+              "std": 0.0
+            },
+            "f1": {
+              "mean": 0.4615384615384615,
+              "std": 0.0
+            },
+            "high_risk_fp_rate": {
+              "mean": 0.0,
+              "std": 0.0
+            },
+            "effective_localization_rate": {
+              "mean": 1.0,
+              "std": 0.0
+            }
+          },
+          "telemetry": {
+            "status": "unavailable",
+            "mean_latency_ms": null,
+            "p95_latency_ms": null,
+            "mean_input_tokens": null,
+            "mean_output_tokens": null,
+            "mean_estimated_cost": null,
+            "currency": null,
+            "pricing_version": null,
+            "reason": "Fixture snapshots contain no provider latency, token usage, or immutable pricing snapshot."
+          }
+        },
+        {
+          "name": "hybrid_rrf",
+          "description": "Complete reference snapshot representing fused candidates.",
+          "languages": {
+            "java": {
+              "counts": {
+                "tp": 5,
+                "fp": 3,
+                "fn": 3
+              },
+              "metrics": {
+                "precision": {
+                  "mean": 0.625,
+                  "std": 0.0
+                },
+                "recall": {
+                  "mean": 0.625,
+                  "std": 0.0
+                },
+                "f1": {
+                  "mean": 0.625,
+                  "std": 0.0
+                },
+                "high_risk_fp_rate": {
+                  "mean": 0.25,
+                  "std": 0.0
+                },
+                "effective_localization_rate": {
+                  "mean": 1.0,
+                  "std": 0.0
+                }
+              },
+              "recall_at_k": {
+                "5": {
+                  "mean": 0.625,
+                  "std": 0.0
+                },
+                "10": {
+                  "mean": 0.625,
+                  "std": 0.0
+                },
+                "20": {
+                  "mean": 0.625,
+                  "std": 0.0
+                }
+              }
+            },
+            "python": {
+              "counts": {
+                "tp": 5,
+                "fp": 3,
+                "fn": 3
+              },
+              "metrics": {
+                "precision": {
+                  "mean": 0.625,
+                  "std": 0.0
+                },
+                "recall": {
+                  "mean": 0.625,
+                  "std": 0.0
+                },
+                "f1": {
+                  "mean": 0.625,
+                  "std": 0.0
+                },
+                "high_risk_fp_rate": {
+                  "mean": 0.25,
+                  "std": 0.0
+                },
+                "effective_localization_rate": {
+                  "mean": 1.0,
+                  "std": 0.0
+                }
+              },
+              "recall_at_k": {
+                "5": {
+                  "mean": 0.625,
+                  "std": 0.0
+                },
+                "10": {
+                  "mean": 0.625,
+                  "std": 0.0
+                },
+                "20": {
+                  "mean": 0.625,
+                  "std": 0.0
+                }
+              }
+            }
+          },
+          "macro_metrics": {
+            "precision": {
+              "mean": 0.625,
+              "std": 0.0
+            },
+            "recall": {
+              "mean": 0.625,
+              "std": 0.0
+            },
+            "f1": {
+              "mean": 0.625,
+              "std": 0.0
+            },
+            "high_risk_fp_rate": {
+              "mean": 0.25,
+              "std": 0.0
+            },
+            "effective_localization_rate": {
+              "mean": 1.0,
+              "std": 0.0
+            }
+          },
+          "telemetry": {
+            "status": "unavailable",
+            "mean_latency_ms": null,
+            "p95_latency_ms": null,
+            "mean_input_tokens": null,
+            "mean_output_tokens": null,
+            "mean_estimated_cost": null,
+            "currency": null,
+            "pricing_version": null,
+            "reason": "Fixture snapshots contain no provider latency, token usage, or immutable pricing snapshot."
+          }
+        }
+      ]
+    },
+    {
+      "id": "validation",
+      "title": "Validation pipeline reference",
+      "variants": [
+        {
+          "name": "review_only",
+          "description": "Unfiltered review snapshot.",
+          "languages": {
+            "java": {
+              "counts": {
+                "tp": 5,
+                "fp": 3,
+                "fn": 3
+              },
+              "metrics": {
+                "precision": {
+                  "mean": 0.625,
+                  "std": 0.0
+                },
+                "recall": {
+                  "mean": 0.625,
+                  "std": 0.0
+                },
+                "f1": {
+                  "mean": 0.625,
+                  "std": 0.0
+                },
+                "high_risk_fp_rate": {
+                  "mean": 0.25,
+                  "std": 0.0
+                },
+                "effective_localization_rate": {
+                  "mean": 1.0,
+                  "std": 0.0
+                }
+              },
+              "recall_at_k": {
+                "5": {
+                  "mean": 0.625,
+                  "std": 0.0
+                },
+                "10": {
+                  "mean": 0.625,
+                  "std": 0.0
+                },
+                "20": {
+                  "mean": 0.625,
+                  "std": 0.0
+                }
+              }
+            },
+            "python": {
+              "counts": {
+                "tp": 5,
+                "fp": 3,
+                "fn": 3
+              },
+              "metrics": {
+                "precision": {
+                  "mean": 0.625,
+                  "std": 0.0
+                },
+                "recall": {
+                  "mean": 0.625,
+                  "std": 0.0
+                },
+                "f1": {
+                  "mean": 0.625,
+                  "std": 0.0
+                },
+                "high_risk_fp_rate": {
+                  "mean": 0.25,
+                  "std": 0.0
+                },
+                "effective_localization_rate": {
+                  "mean": 1.0,
+                  "std": 0.0
+                }
+              },
+              "recall_at_k": {
+                "5": {
+                  "mean": 0.625,
+                  "std": 0.0
+                },
+                "10": {
+                  "mean": 0.625,
+                  "std": 0.0
+                },
+                "20": {
+                  "mean": 0.625,
+                  "std": 0.0
+                }
+              }
+            }
+          },
+          "macro_metrics": {
+            "precision": {
+              "mean": 0.625,
+              "std": 0.0
+            },
+            "recall": {
+              "mean": 0.625,
+              "std": 0.0
+            },
+            "f1": {
+              "mean": 0.625,
+              "std": 0.0
+            },
+            "high_risk_fp_rate": {
+              "mean": 0.25,
+              "std": 0.0
+            },
+            "effective_localization_rate": {
+              "mean": 1.0,
+              "std": 0.0
+            }
+          },
+          "telemetry": {
+            "status": "unavailable",
+            "mean_latency_ms": null,
+            "p95_latency_ms": null,
+            "mean_input_tokens": null,
+            "mean_output_tokens": null,
+            "mean_estimated_cost": null,
+            "currency": null,
+            "pricing_version": null,
+            "reason": "Fixture snapshots contain no provider latency, token usage, or immutable pricing snapshot."
+          }
+        },
+        {
+          "name": "review_critic",
+          "description": "Reference snapshot after one semantic rejection.",
+          "languages": {
+            "java": {
+              "counts": {
+                "tp": 5,
+                "fp": 2,
+                "fn": 3
+              },
+              "metrics": {
+                "precision": {
+                  "mean": 0.7142857142857143,
+                  "std": 0.0
+                },
+                "recall": {
+                  "mean": 0.625,
+                  "std": 0.0
+                },
+                "f1": {
+                  "mean": 0.6666666666666666,
+                  "std": 0.0
+                },
+                "high_risk_fp_rate": {
+                  "mean": 0.25,
+                  "std": 0.0
+                },
+                "effective_localization_rate": {
+                  "mean": 1.0,
+                  "std": 0.0
+                }
+              },
+              "recall_at_k": {
+                "5": {
+                  "mean": 0.625,
+                  "std": 0.0
+                },
+                "10": {
+                  "mean": 0.625,
+                  "std": 0.0
+                },
+                "20": {
+                  "mean": 0.625,
+                  "std": 0.0
+                }
+              }
+            },
+            "python": {
+              "counts": {
+                "tp": 5,
+                "fp": 2,
+                "fn": 3
+              },
+              "metrics": {
+                "precision": {
+                  "mean": 0.7142857142857143,
+                  "std": 0.0
+                },
+                "recall": {
+                  "mean": 0.625,
+                  "std": 0.0
+                },
+                "f1": {
+                  "mean": 0.6666666666666666,
+                  "std": 0.0
+                },
+                "high_risk_fp_rate": {
+                  "mean": 0.25,
+                  "std": 0.0
+                },
+                "effective_localization_rate": {
+                  "mean": 1.0,
+                  "std": 0.0
+                }
+              },
+              "recall_at_k": {
+                "5": {
+                  "mean": 0.625,
+                  "std": 0.0
+                },
+                "10": {
+                  "mean": 0.625,
+                  "std": 0.0
+                },
+                "20": {
+                  "mean": 0.625,
+                  "std": 0.0
+                }
+              }
+            }
+          },
+          "macro_metrics": {
+            "precision": {
+              "mean": 0.7142857142857143,
+              "std": 0.0
+            },
+            "recall": {
+              "mean": 0.625,
+              "std": 0.0
+            },
+            "f1": {
+              "mean": 0.6666666666666666,
+              "std": 0.0
+            },
+            "high_risk_fp_rate": {
+              "mean": 0.25,
+              "std": 0.0
+            },
+            "effective_localization_rate": {
+              "mean": 1.0,
+              "std": 0.0
+            }
+          },
+          "telemetry": {
+            "status": "unavailable",
+            "mean_latency_ms": null,
+            "p95_latency_ms": null,
+            "mean_input_tokens": null,
+            "mean_output_tokens": null,
+            "mean_estimated_cost": null,
+            "currency": null,
+            "pricing_version": null,
+            "reason": "Fixture snapshots contain no provider latency, token usage, or immutable pricing snapshot."
+          }
+        },
+        {
+          "name": "review_evidence_critic",
+          "description": "Reference snapshot after deterministic evidence and semantic checks.",
+          "languages": {
+            "java": {
+              "counts": {
+                "tp": 5,
+                "fp": 0,
+                "fn": 3
+              },
+              "metrics": {
+                "precision": {
+                  "mean": 1.0,
+                  "std": 0.0
+                },
+                "recall": {
+                  "mean": 0.625,
+                  "std": 0.0
+                },
+                "f1": {
+                  "mean": 0.7692307692307693,
+                  "std": 0.0
+                },
+                "high_risk_fp_rate": {
+                  "mean": 0.0,
+                  "std": 0.0
+                },
+                "effective_localization_rate": {
+                  "mean": 1.0,
+                  "std": 0.0
+                }
+              },
+              "recall_at_k": {
+                "5": {
+                  "mean": 0.625,
+                  "std": 0.0
+                },
+                "10": {
+                  "mean": 0.625,
+                  "std": 0.0
+                },
+                "20": {
+                  "mean": 0.625,
+                  "std": 0.0
+                }
+              }
+            },
+            "python": {
+              "counts": {
+                "tp": 5,
+                "fp": 0,
+                "fn": 3
+              },
+              "metrics": {
+                "precision": {
+                  "mean": 1.0,
+                  "std": 0.0
+                },
+                "recall": {
+                  "mean": 0.625,
+                  "std": 0.0
+                },
+                "f1": {
+                  "mean": 0.7692307692307693,
+                  "std": 0.0
+                },
+                "high_risk_fp_rate": {
+                  "mean": 0.0,
+                  "std": 0.0
+                },
+                "effective_localization_rate": {
+                  "mean": 1.0,
+                  "std": 0.0
+                }
+              },
+              "recall_at_k": {
+                "5": {
+                  "mean": 0.625,
+                  "std": 0.0
+                },
+                "10": {
+                  "mean": 0.625,
+                  "std": 0.0
+                },
+                "20": {
+                  "mean": 0.625,
+                  "std": 0.0
+                }
+              }
+            }
+          },
+          "macro_metrics": {
+            "precision": {
+              "mean": 1.0,
+              "std": 0.0
+            },
+            "recall": {
+              "mean": 0.625,
+              "std": 0.0
+            },
+            "f1": {
+              "mean": 0.7692307692307693,
+              "std": 0.0
+            },
+            "high_risk_fp_rate": {
+              "mean": 0.0,
+              "std": 0.0
+            },
+            "effective_localization_rate": {
+              "mean": 1.0,
+              "std": 0.0
+            }
+          },
+          "telemetry": {
+            "status": "unavailable",
+            "mean_latency_ms": null,
+            "p95_latency_ms": null,
+            "mean_input_tokens": null,
+            "mean_output_tokens": null,
+            "mean_estimated_cost": null,
+            "currency": null,
+            "pricing_version": null,
+            "reason": "Fixture snapshots contain no provider latency, token usage, or immutable pricing snapshot."
+          }
+        }
+      ]
+    },
+    {
+      "id": "chunking",
+      "title": "Chunking strategy reference",
+      "variants": [
+        {
+          "name": "line_window",
+          "description": "Reference candidates available with line windows.",
+          "languages": {
+            "java": {
+              "counts": {
+                "tp": 2,
+                "fp": 2,
+                "fn": 6
+              },
+              "metrics": {
+                "precision": {
+                  "mean": 0.5,
+                  "std": 0.0
+                },
+                "recall": {
+                  "mean": 0.25,
+                  "std": 0.0
+                },
+                "f1": {
+                  "mean": 0.3333333333333333,
+                  "std": 0.0
+                },
+                "high_risk_fp_rate": {
+                  "mean": 0.3333333333333333,
+                  "std": 0.0
+                },
+                "effective_localization_rate": {
+                  "mean": 1.0,
+                  "std": 0.0
+                }
+              },
+              "recall_at_k": {
+                "5": {
+                  "mean": 0.25,
+                  "std": 0.0
+                },
+                "10": {
+                  "mean": 0.25,
+                  "std": 0.0
+                },
+                "20": {
+                  "mean": 0.25,
+                  "std": 0.0
+                }
+              }
+            },
+            "python": {
+              "counts": {
+                "tp": 2,
+                "fp": 2,
+                "fn": 6
+              },
+              "metrics": {
+                "precision": {
+                  "mean": 0.5,
+                  "std": 0.0
+                },
+                "recall": {
+                  "mean": 0.25,
+                  "std": 0.0
+                },
+                "f1": {
+                  "mean": 0.3333333333333333,
+                  "std": 0.0
+                },
+                "high_risk_fp_rate": {
+                  "mean": 0.3333333333333333,
+                  "std": 0.0
+                },
+                "effective_localization_rate": {
+                  "mean": 1.0,
+                  "std": 0.0
+                }
+              },
+              "recall_at_k": {
+                "5": {
+                  "mean": 0.25,
+                  "std": 0.0
+                },
+                "10": {
+                  "mean": 0.25,
+                  "std": 0.0
+                },
+                "20": {
+                  "mean": 0.25,
+                  "std": 0.0
+                }
+              }
+            }
+          },
+          "macro_metrics": {
+            "precision": {
+              "mean": 0.5,
+              "std": 0.0
+            },
+            "recall": {
+              "mean": 0.25,
+              "std": 0.0
+            },
+            "f1": {
+              "mean": 0.3333333333333333,
+              "std": 0.0
+            },
+            "high_risk_fp_rate": {
+              "mean": 0.3333333333333333,
+              "std": 0.0
+            },
+            "effective_localization_rate": {
+              "mean": 1.0,
+              "std": 0.0
+            }
+          },
+          "telemetry": {
+            "status": "unavailable",
+            "mean_latency_ms": null,
+            "p95_latency_ms": null,
+            "mean_input_tokens": null,
+            "mean_output_tokens": null,
+            "mean_estimated_cost": null,
+            "currency": null,
+            "pricing_version": null,
+            "reason": "Fixture snapshots contain no provider latency, token usage, or immutable pricing snapshot."
+          }
+        },
+        {
+          "name": "ast",
+          "description": "Reference candidates available with AST chunks.",
+          "languages": {
+            "java": {
+              "counts": {
+                "tp": 4,
+                "fp": 2,
+                "fn": 4
+              },
+              "metrics": {
+                "precision": {
+                  "mean": 0.6666666666666666,
+                  "std": 0.0
+                },
+                "recall": {
+                  "mean": 0.5,
+                  "std": 0.0
+                },
+                "f1": {
+                  "mean": 0.5714285714285715,
+                  "std": 0.0
+                },
+                "high_risk_fp_rate": {
+                  "mean": 0.3333333333333333,
+                  "std": 0.0
+                },
+                "effective_localization_rate": {
+                  "mean": 1.0,
+                  "std": 0.0
+                }
+              },
+              "recall_at_k": {
+                "5": {
+                  "mean": 0.5,
+                  "std": 0.0
+                },
+                "10": {
+                  "mean": 0.5,
+                  "std": 0.0
+                },
+                "20": {
+                  "mean": 0.5,
+                  "std": 0.0
+                }
+              }
+            },
+            "python": {
+              "counts": {
+                "tp": 4,
+                "fp": 2,
+                "fn": 4
+              },
+              "metrics": {
+                "precision": {
+                  "mean": 0.6666666666666666,
+                  "std": 0.0
+                },
+                "recall": {
+                  "mean": 0.5,
+                  "std": 0.0
+                },
+                "f1": {
+                  "mean": 0.5714285714285715,
+                  "std": 0.0
+                },
+                "high_risk_fp_rate": {
+                  "mean": 0.25,
+                  "std": 0.0
+                },
+                "effective_localization_rate": {
+                  "mean": 1.0,
+                  "std": 0.0
+                }
+              },
+              "recall_at_k": {
+                "5": {
+                  "mean": 0.5,
+                  "std": 0.0
+                },
+                "10": {
+                  "mean": 0.5,
+                  "std": 0.0
+                },
+                "20": {
+                  "mean": 0.5,
+                  "std": 0.0
+                }
+              }
+            }
+          },
+          "macro_metrics": {
+            "precision": {
+              "mean": 0.6666666666666666,
+              "std": 0.0
+            },
+            "recall": {
+              "mean": 0.5,
+              "std": 0.0
+            },
+            "f1": {
+              "mean": 0.5714285714285715,
+              "std": 0.0
+            },
+            "high_risk_fp_rate": {
+              "mean": 0.29166666666666663,
+              "std": 0.0
+            },
+            "effective_localization_rate": {
+              "mean": 1.0,
+              "std": 0.0
+            }
+          },
+          "telemetry": {
+            "status": "unavailable",
+            "mean_latency_ms": null,
+            "p95_latency_ms": null,
+            "mean_input_tokens": null,
+            "mean_output_tokens": null,
+            "mean_estimated_cost": null,
+            "currency": null,
+            "pricing_version": null,
+            "reason": "Fixture snapshots contain no provider latency, token usage, or immutable pricing snapshot."
+          }
+        },
+        {
+          "name": "ast_neighbors",
+          "description": "Complete reference snapshot with neighboring context.",
+          "languages": {
+            "java": {
+              "counts": {
+                "tp": 5,
+                "fp": 3,
+                "fn": 3
+              },
+              "metrics": {
+                "precision": {
+                  "mean": 0.625,
+                  "std": 0.0
+                },
+                "recall": {
+                  "mean": 0.625,
+                  "std": 0.0
+                },
+                "f1": {
+                  "mean": 0.625,
+                  "std": 0.0
+                },
+                "high_risk_fp_rate": {
+                  "mean": 0.25,
+                  "std": 0.0
+                },
+                "effective_localization_rate": {
+                  "mean": 1.0,
+                  "std": 0.0
+                }
+              },
+              "recall_at_k": {
+                "5": {
+                  "mean": 0.625,
+                  "std": 0.0
+                },
+                "10": {
+                  "mean": 0.625,
+                  "std": 0.0
+                },
+                "20": {
+                  "mean": 0.625,
+                  "std": 0.0
+                }
+              }
+            },
+            "python": {
+              "counts": {
+                "tp": 5,
+                "fp": 3,
+                "fn": 3
+              },
+              "metrics": {
+                "precision": {
+                  "mean": 0.625,
+                  "std": 0.0
+                },
+                "recall": {
+                  "mean": 0.625,
+                  "std": 0.0
+                },
+                "f1": {
+                  "mean": 0.625,
+                  "std": 0.0
+                },
+                "high_risk_fp_rate": {
+                  "mean": 0.25,
+                  "std": 0.0
+                },
+                "effective_localization_rate": {
+                  "mean": 1.0,
+                  "std": 0.0
+                }
+              },
+              "recall_at_k": {
+                "5": {
+                  "mean": 0.625,
+                  "std": 0.0
+                },
+                "10": {
+                  "mean": 0.625,
+                  "std": 0.0
+                },
+                "20": {
+                  "mean": 0.625,
+                  "std": 0.0
+                }
+              }
+            }
+          },
+          "macro_metrics": {
+            "precision": {
+              "mean": 0.625,
+              "std": 0.0
+            },
+            "recall": {
+              "mean": 0.625,
+              "std": 0.0
+            },
+            "f1": {
+              "mean": 0.625,
+              "std": 0.0
+            },
+            "high_risk_fp_rate": {
+              "mean": 0.25,
+              "std": 0.0
+            },
+            "effective_localization_rate": {
+              "mean": 1.0,
+              "std": 0.0
+            }
+          },
+          "telemetry": {
+            "status": "unavailable",
+            "mean_latency_ms": null,
+            "p95_latency_ms": null,
+            "mean_input_tokens": null,
+            "mean_output_tokens": null,
+            "mean_estimated_cost": null,
+            "currency": null,
+            "pricing_version": null,
+            "reason": "Fixture snapshots contain no provider latency, token usage, or immutable pricing snapshot."
+          }
+        }
+      ]
+    },
+    {
+      "id": "rounds",
+      "title": "Review round reference",
+      "variants": [
+        {
+          "name": "round_1",
+          "description": "First three ranked reference findings.",
+          "languages": {
+            "java": {
+              "counts": {
+                "tp": 3,
+                "fp": 0,
+                "fn": 5
+              },
+              "metrics": {
+                "precision": {
+                  "mean": 1.0,
+                  "std": 0.0
+                },
+                "recall": {
+                  "mean": 0.375,
+                  "std": 0.0
+                },
+                "f1": {
+                  "mean": 0.5454545454545454,
+                  "std": 0.0
+                },
+                "high_risk_fp_rate": {
+                  "mean": 0.0,
+                  "std": 0.0
+                },
+                "effective_localization_rate": {
+                  "mean": 1.0,
+                  "std": 0.0
+                }
+              },
+              "recall_at_k": {
+                "5": {
+                  "mean": 0.375,
+                  "std": 0.0
+                },
+                "10": {
+                  "mean": 0.375,
+                  "std": 0.0
+                },
+                "20": {
+                  "mean": 0.375,
+                  "std": 0.0
+                }
+              }
+            },
+            "python": {
+              "counts": {
+                "tp": 3,
+                "fp": 0,
+                "fn": 5
+              },
+              "metrics": {
+                "precision": {
+                  "mean": 1.0,
+                  "std": 0.0
+                },
+                "recall": {
+                  "mean": 0.375,
+                  "std": 0.0
+                },
+                "f1": {
+                  "mean": 0.5454545454545454,
+                  "std": 0.0
+                },
+                "high_risk_fp_rate": {
+                  "mean": 0.0,
+                  "std": 0.0
+                },
+                "effective_localization_rate": {
+                  "mean": 1.0,
+                  "std": 0.0
+                }
+              },
+              "recall_at_k": {
+                "5": {
+                  "mean": 0.375,
+                  "std": 0.0
+                },
+                "10": {
+                  "mean": 0.375,
+                  "std": 0.0
+                },
+                "20": {
+                  "mean": 0.375,
+                  "std": 0.0
+                }
+              }
+            }
+          },
+          "macro_metrics": {
+            "precision": {
+              "mean": 1.0,
+              "std": 0.0
+            },
+            "recall": {
+              "mean": 0.375,
+              "std": 0.0
+            },
+            "f1": {
+              "mean": 0.5454545454545454,
+              "std": 0.0
+            },
+            "high_risk_fp_rate": {
+              "mean": 0.0,
+              "std": 0.0
+            },
+            "effective_localization_rate": {
+              "mean": 1.0,
+              "std": 0.0
+            }
+          },
+          "telemetry": {
+            "status": "unavailable",
+            "mean_latency_ms": null,
+            "p95_latency_ms": null,
+            "mean_input_tokens": null,
+            "mean_output_tokens": null,
+            "mean_estimated_cost": null,
+            "currency": null,
+            "pricing_version": null,
+            "reason": "Fixture snapshots contain no provider latency, token usage, or immutable pricing snapshot."
+          }
+        },
+        {
+          "name": "round_2",
+          "description": "First six ranked reference findings.",
+          "languages": {
+            "java": {
+              "counts": {
+                "tp": 5,
+                "fp": 1,
+                "fn": 3
+              },
+              "metrics": {
+                "precision": {
+                  "mean": 0.8333333333333334,
+                  "std": 0.0
+                },
+                "recall": {
+                  "mean": 0.625,
+                  "std": 0.0
+                },
+                "f1": {
+                  "mean": 0.7142857142857143,
+                  "std": 0.0
+                },
+                "high_risk_fp_rate": {
+                  "mean": 0.25,
+                  "std": 0.0
+                },
+                "effective_localization_rate": {
+                  "mean": 1.0,
+                  "std": 0.0
+                }
+              },
+              "recall_at_k": {
+                "5": {
+                  "mean": 0.625,
+                  "std": 0.0
+                },
+                "10": {
+                  "mean": 0.625,
+                  "std": 0.0
+                },
+                "20": {
+                  "mean": 0.625,
+                  "std": 0.0
+                }
+              }
+            },
+            "python": {
+              "counts": {
+                "tp": 5,
+                "fp": 1,
+                "fn": 3
+              },
+              "metrics": {
+                "precision": {
+                  "mean": 0.8333333333333334,
+                  "std": 0.0
+                },
+                "recall": {
+                  "mean": 0.625,
+                  "std": 0.0
+                },
+                "f1": {
+                  "mean": 0.7142857142857143,
+                  "std": 0.0
+                },
+                "high_risk_fp_rate": {
+                  "mean": 0.25,
+                  "std": 0.0
+                },
+                "effective_localization_rate": {
+                  "mean": 1.0,
+                  "std": 0.0
+                }
+              },
+              "recall_at_k": {
+                "5": {
+                  "mean": 0.625,
+                  "std": 0.0
+                },
+                "10": {
+                  "mean": 0.625,
+                  "std": 0.0
+                },
+                "20": {
+                  "mean": 0.625,
+                  "std": 0.0
+                }
+              }
+            }
+          },
+          "macro_metrics": {
+            "precision": {
+              "mean": 0.8333333333333334,
+              "std": 0.0
+            },
+            "recall": {
+              "mean": 0.625,
+              "std": 0.0
+            },
+            "f1": {
+              "mean": 0.7142857142857143,
+              "std": 0.0
+            },
+            "high_risk_fp_rate": {
+              "mean": 0.25,
+              "std": 0.0
+            },
+            "effective_localization_rate": {
+              "mean": 1.0,
+              "std": 0.0
+            }
+          },
+          "telemetry": {
+            "status": "unavailable",
+            "mean_latency_ms": null,
+            "p95_latency_ms": null,
+            "mean_input_tokens": null,
+            "mean_output_tokens": null,
+            "mean_estimated_cost": null,
+            "currency": null,
+            "pricing_version": null,
+            "reason": "Fixture snapshots contain no provider latency, token usage, or immutable pricing snapshot."
+          }
+        },
+        {
+          "name": "round_3",
+          "description": "Complete ranked reference snapshot.",
+          "languages": {
+            "java": {
+              "counts": {
+                "tp": 5,
+                "fp": 3,
+                "fn": 3
+              },
+              "metrics": {
+                "precision": {
+                  "mean": 0.625,
+                  "std": 0.0
+                },
+                "recall": {
+                  "mean": 0.625,
+                  "std": 0.0
+                },
+                "f1": {
+                  "mean": 0.625,
+                  "std": 0.0
+                },
+                "high_risk_fp_rate": {
+                  "mean": 0.25,
+                  "std": 0.0
+                },
+                "effective_localization_rate": {
+                  "mean": 1.0,
+                  "std": 0.0
+                }
+              },
+              "recall_at_k": {
+                "5": {
+                  "mean": 0.625,
+                  "std": 0.0
+                },
+                "10": {
+                  "mean": 0.625,
+                  "std": 0.0
+                },
+                "20": {
+                  "mean": 0.625,
+                  "std": 0.0
+                }
+              }
+            },
+            "python": {
+              "counts": {
+                "tp": 5,
+                "fp": 3,
+                "fn": 3
+              },
+              "metrics": {
+                "precision": {
+                  "mean": 0.625,
+                  "std": 0.0
+                },
+                "recall": {
+                  "mean": 0.625,
+                  "std": 0.0
+                },
+                "f1": {
+                  "mean": 0.625,
+                  "std": 0.0
+                },
+                "high_risk_fp_rate": {
+                  "mean": 0.25,
+                  "std": 0.0
+                },
+                "effective_localization_rate": {
+                  "mean": 1.0,
+                  "std": 0.0
+                }
+              },
+              "recall_at_k": {
+                "5": {
+                  "mean": 0.625,
+                  "std": 0.0
+                },
+                "10": {
+                  "mean": 0.625,
+                  "std": 0.0
+                },
+                "20": {
+                  "mean": 0.625,
+                  "std": 0.0
+                }
+              }
+            }
+          },
+          "macro_metrics": {
+            "precision": {
+              "mean": 0.625,
+              "std": 0.0
+            },
+            "recall": {
+              "mean": 0.625,
+              "std": 0.0
+            },
+            "f1": {
+              "mean": 0.625,
+              "std": 0.0
+            },
+            "high_risk_fp_rate": {
+              "mean": 0.25,
+              "std": 0.0
+            },
+            "effective_localization_rate": {
+              "mean": 1.0,
+              "std": 0.0
+            }
+          },
+          "telemetry": {
+            "status": "unavailable",
+            "mean_latency_ms": null,
+            "p95_latency_ms": null,
+            "mean_input_tokens": null,
+            "mean_output_tokens": null,
+            "mean_estimated_cost": null,
+            "currency": null,
+            "pricing_version": null,
+            "reason": "Fixture snapshots contain no provider latency, token usage, or immutable pricing snapshot."
+          }
+        }
+      ]
+    }
+  ]
+}
