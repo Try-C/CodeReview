@@ -87,3 +87,27 @@ def test_invalid_health_dependency_timeout_is_rejected(timeout: float) -> None:
 def test_invalid_sse_heartbeat_is_rejected(heartbeat: float) -> None:
     with pytest.raises(ValidationError):
         Settings(_env_file=None, sse_heartbeat_seconds=heartbeat)
+
+
+@pytest.mark.parametrize(
+    ("ideal_min", "ideal_max", "maximum", "overlap"),
+    [
+        (151, 150, 200, 15),
+        (50, 201, 200, 15),
+        (5, 10, 15, 15),
+    ],
+)
+def test_invalid_chunk_line_limits_are_rejected(
+    ideal_min: int,
+    ideal_max: int,
+    maximum: int,
+    overlap: int,
+) -> None:
+    with pytest.raises(ValidationError, match="chunk"):
+        Settings(
+            _env_file=None,
+            chunk_ideal_min_lines=ideal_min,
+            chunk_ideal_max_lines=ideal_max,
+            chunk_max_lines=maximum,
+            chunk_overlap_lines=overlap,
+        )
