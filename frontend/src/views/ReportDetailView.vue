@@ -14,7 +14,6 @@ const issues = ref<IssueDetail[]>([])
 const loading = ref(true)
 const drawerVisible = ref(false)
 const selectedIssue = ref<IssueDetail | null>(null)
-const markdownContent = ref('')
 
 onMounted(async () => {
   try {

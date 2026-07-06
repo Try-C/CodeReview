@@ -166,6 +166,7 @@ class TestReportServiceSummary:
         svc = ReportService()
         report = svc.build(task_id=1, project_id=1)
         summary = await svc.generate_summary(report)
+        assert summary is not None
         assert "No issues were identified" in summary
 
     @pytest.mark.asyncio
@@ -196,11 +197,11 @@ class TestReportServiceSummary:
         class BadReport:
             pass  # triggers exception in _build_summary_prompt
 
-        # Use a corrupted report that makes _build_summary_prompt fail.
+        # Patch chat to simulate an LLM error → fallback to deterministic summary.
         async def bad_chat(*args: object, **kwargs: object) -> object:
             raise RuntimeError("simulated error")
 
-        fake.chat = bad_chat  # type: ignore[method-assign]
+        fake.chat = bad_chat  # type: ignore[assignment]
         report = svc.build(task_id=1, project_id=1)
         summary = await svc.generate_summary(report)
         assert summary is not None  # falls back
