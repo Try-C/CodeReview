@@ -214,6 +214,7 @@ class TestCriticDecision:
 class TestRoutes:
     def test_guard_planner_proceed(self) -> None:
         from app.graph.routes import ROUTE_REPORT, route_guard_planner
+
         assert route_guard_planner({"next_action": "planner"}) == "planner"
         assert route_guard_planner({"next_action": "report"}) == ROUTE_REPORT
 
@@ -223,17 +224,20 @@ class TestRoutes:
             ROUTE_EVIDENCE_VERIFY,
             route_review_decision,
         )
+
         assert route_review_decision({"next_action": "advance_item"}) == ROUTE_ADVANCE_ITEM
         assert route_review_decision({"next_action": "rewrite_query"}) == "rewrite_query"
         assert route_review_decision({"next_action": "evidence_verify"}) == ROUTE_EVIDENCE_VERIFY
 
     def test_critic_decision_routing(self) -> None:
         from app.graph.routes import ROUTE_ADVANCE_ITEM, ROUTE_GUARD_RETRIEVE, route_critic_decision
+
         assert route_critic_decision({"next_action": "prepare_rereview"}) == ROUTE_GUARD_RETRIEVE
         assert route_critic_decision({"next_action": "finalize_item"}) == ROUTE_ADVANCE_ITEM
 
     def test_advance_item_routing(self) -> None:
         from app.graph.routes import ROUTE_REPORT, route_advance_item
+
         assert route_advance_item({"next_action": "init_item"}) == "init_item"
         assert route_advance_item({"next_action": "report"}) == ROUTE_REPORT
 
@@ -244,13 +248,19 @@ class TestRoutes:
 class TestPlannerAgent:
     @pytest.mark.asyncio
     async def test_planner_produces_review_plan(self) -> None:
-        plan = ReviewPlan(items=[
-            ReviewItem(
-                key="item-1", review_type="security",
-                target_paths=["src/auth/"], keywords=["auth"],
-                risk_focus=["CWE-862"], priority="high", top_k=10,
-            )
-        ])
+        plan = ReviewPlan(
+            items=[
+                ReviewItem(
+                    key="item-1",
+                    review_type="security",
+                    target_paths=["src/auth/"],
+                    keywords=["auth"],
+                    risk_focus=["CWE-862"],
+                    priority="high",
+                    top_k=10,
+                )
+            ]
+        )
         llm = _build_fake_llm(plan)
         agent = PlannerAgent(llm)
         state = _make_state(file_summary={"src/A.java": {"language": "java", "line_count": 50}})
@@ -275,10 +285,20 @@ class TestReviewerAgent:
     @pytest.mark.asyncio
     async def test_reviewer_produces_issues(self) -> None:
         issue = IssueCandidate(
-            relative_path="src/a.py", start_line=1, end_line=2,
-            evidence="bad", source_chunk_ids=[1], category="bug",
-            issue_type="test", risk_level="Low", rule_id="T-1",
-            title="T", description="D", reason="R", suggestion="S", confidence=0.5,
+            relative_path="src/a.py",
+            start_line=1,
+            end_line=2,
+            evidence="bad",
+            source_chunk_ids=[1],
+            category="bug",
+            issue_type="test",
+            risk_level="Low",
+            rule_id="T-1",
+            title="T",
+            description="D",
+            reason="R",
+            suggestion="S",
+            confidence=0.5,
         )
         output = ReviewOutput(issues=[issue])
         llm = _build_fake_llm(output)
@@ -307,10 +327,12 @@ class TestReviewerAgent:
 class TestCriticAgent:
     @pytest.mark.asyncio
     async def test_critic_produces_decisions(self) -> None:
-        co = CriticOutput(decisions=[
-            CriticResult(fingerprint="fp-1", decision="pass", reason="ok"),
-            CriticResult(fingerprint="fp-2", decision="fail", reason="fp"),
-        ])
+        co = CriticOutput(
+            decisions=[
+                CriticResult(fingerprint="fp-1", decision="pass", reason="ok"),
+                CriticResult(fingerprint="fp-2", decision="fail", reason="fp"),
+            ]
+        )
         llm = _build_fake_llm(co)
         agent = CriticAgent(llm)
         state = _make_state(
@@ -328,6 +350,7 @@ class TestCriticAgent:
 class TestInitItem:
     def test_init_first_item(self) -> None:
         from app.graph.nodes import InitItemNode
+
         node = InitItemNode()
         state = _make_state(
             review_plan=[_make_plan_item("item-1"), _make_plan_item("item-2")],
@@ -339,6 +362,7 @@ class TestInitItem:
 
     def test_empty_plan_goes_to_report(self) -> None:
         from app.graph.nodes import InitItemNode
+
         node = InitItemNode()
         state = _make_state(review_plan=[], current_review_index=0)
         result = node(state)
@@ -348,30 +372,36 @@ class TestInitItem:
 class TestReviewDecision:
     def test_no_issues_advances(self) -> None:
         from app.graph.nodes import ReviewDecisionNode
+
         node = ReviewDecisionNode()
         state = _make_state(current_issues=[])
         assert node(state)["next_action"] == "advance_item"
 
     def test_issues_go_to_evidence(self) -> None:
         from app.graph.nodes import ReviewDecisionNode
+
         node = ReviewDecisionNode()
         state = _make_state(current_issues=[_make_issue()])
         assert node(state)["next_action"] == "evidence_verify"
 
     def test_insufficient_context_once_rewrites(self) -> None:
         from app.graph.nodes import ReviewDecisionNode
+
         node = ReviewDecisionNode()
         state = _make_state(
-            current_issues=[], current_item_warning="insufficient_context",
+            current_issues=[],
+            current_item_warning="insufficient_context",
             retrieval_retry_count=0,
         )
         assert node(state)["next_action"] == "rewrite_query"
 
     def test_insufficient_context_exhausted_advances(self) -> None:
         from app.graph.nodes import ReviewDecisionNode
+
         node = ReviewDecisionNode()
         state = _make_state(
-            current_issues=[], current_item_warning="insufficient_context",
+            current_issues=[],
+            current_item_warning="insufficient_context",
             retrieval_retry_count=2,
         )
         result = node(state)
@@ -382,6 +412,7 @@ class TestReviewDecision:
 class TestAdvanceItem:
     def test_advance_to_next_item(self) -> None:
         from app.graph.nodes import AdvanceItemNode
+
         node = AdvanceItemNode()
         state = _make_state(
             review_plan=[_make_plan_item("a"), _make_plan_item("b")],
@@ -393,6 +424,7 @@ class TestAdvanceItem:
 
     def test_all_items_done_goes_to_report(self) -> None:
         from app.graph.nodes import AdvanceItemNode
+
         node = AdvanceItemNode()
         state = _make_state(
             review_plan=[_make_plan_item("a")],
@@ -408,6 +440,7 @@ class TestAdvanceItem:
 class TestGraphBuilder:
     def test_graph_compiles_with_fake_agents(self) -> None:
         """Verify the full graph compiles end-to-end with fake agent nodes."""
+
         async def _fake_planner(state: CodeReviewState) -> dict[str, Any]:
             return {"review_plan": [], "next_action": "init_item"}
 
@@ -426,6 +459,7 @@ class TestGraphBuilder:
 
     async def test_invoke_with_empty_plan_terminates(self) -> None:
         """Empty review_plan → graph terminates at Report."""
+
         async def _fake_planner(state: CodeReviewState) -> dict[str, Any]:
             return {"review_plan": [], "next_action": "init_item"}
 
@@ -443,7 +477,9 @@ class TestGraphBuilder:
         result = await invoke_graph(
             graph,
             {
-                "task_id": 1, "project_id": 1, "user_id": 1,
+                "task_id": 1,
+                "project_id": 1,
+                "user_id": 1,
                 "project_root": "/tmp/test",
                 "next_action": "init_item",
                 "file_summary": {"src/A.java": {"language": "java", "line_count": 10}},
@@ -478,7 +514,9 @@ class TestGraphBuilder:
         result = await invoke_graph(
             graph,
             {
-                "task_id": 1, "project_id": 1, "user_id": 1,
+                "task_id": 1,
+                "project_id": 1,
+                "user_id": 1,
                 "project_root": "/tmp/test",
                 "next_action": "init_item",
                 "file_summary": {},

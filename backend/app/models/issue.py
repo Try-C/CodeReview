@@ -53,9 +53,7 @@ class ReviewIssue(Base):
         String(32), nullable=False
     )  # security / bug / performance / maintainability
     issue_type: Mapped[str] = mapped_column(String(64), nullable=False)
-    risk_level: Mapped[str] = mapped_column(
-        String(16), nullable=False
-    )  # High / Medium / Low
+    risk_level: Mapped[str] = mapped_column(String(16), nullable=False)  # High / Medium / Low
     rule_id: Mapped[str | None] = mapped_column(String(64))
     cwe_id: Mapped[str | None] = mapped_column(String(32))
 

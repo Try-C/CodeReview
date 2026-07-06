@@ -90,9 +90,7 @@ class LLMClient:
         if response.status_code != 200:
             text = response.text[:512]
             logger.error("llm_api_error status=%d body=%s", response.status_code, text)
-            raise LLMClientError(
-                f"DeepSeek API returned {response.status_code}: {text}"
-            )
+            raise LLMClientError(f"DeepSeek API returned {response.status_code}: {text}")
 
         body = response.json()
         choice = body["choices"][0]

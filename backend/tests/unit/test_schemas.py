@@ -44,13 +44,23 @@ class TestReviewPlan:
     def test_top_k_bounds(self) -> None:
         with pytest.raises(ValidationError):
             ReviewItem(
-                key="x", review_type="bug", target_paths=["src/"],
-                keywords=["k"], risk_focus=["r"], priority="low", top_k=0,
+                key="x",
+                review_type="bug",
+                target_paths=["src/"],
+                keywords=["k"],
+                risk_focus=["r"],
+                priority="low",
+                top_k=0,
             )
         with pytest.raises(ValidationError):
             ReviewItem(
-                key="x", review_type="bug", target_paths=["src/"],
-                keywords=["k"], risk_focus=["r"], priority="low", top_k=31,
+                key="x",
+                review_type="bug",
+                target_paths=["src/"],
+                keywords=["k"],
+                risk_focus=["r"],
+                priority="low",
+                top_k=31,
             )
 
 
@@ -60,7 +70,7 @@ class TestIssueCandidate:
             relative_path="src/Foo.java",
             start_line=10,
             end_line=12,
-            evidence="String sql = \"SELECT * FROM users WHERE id = '\" + uid + \"'\";",
+            evidence='String sql = "SELECT * FROM users WHERE id = \'" + uid + "\'";',
             source_chunk_ids=[1],
             category="security",
             issue_type="SQL Injection",

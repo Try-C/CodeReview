@@ -136,6 +136,7 @@ class TestFakeLLMClient:
 
 # ── StructuredLLM tests ─────────────────────────────────────────────────────
 
+
 class _TestModel(BaseModel):
     name: str
     value: int
@@ -222,7 +223,7 @@ class TestEvidenceService:
             (src / "Test.java").write_text(
                 "package demo;\n"
                 "public class Test {\n"
-                "    String sql = \"SELECT * FROM users WHERE id = '\" + uid + \"'\";\n"
+                '    String sql = "SELECT * FROM users WHERE id = \'" + uid + "\'";\n'
                 "}\n"
             )
             yield td
@@ -238,7 +239,9 @@ class TestEvidenceService:
             "rule_id": "JAVA-SQL-001",
         }
         result = await service.verify_one(
-            issue=issue, project_id=1, project_root=tmp_project,
+            issue=issue,
+            project_id=1,
+            project_root=tmp_project,
         )
         assert result["evidence_status"] == "passed"
 
@@ -253,7 +256,9 @@ class TestEvidenceService:
             "rule_id": "X-1",
         }
         result = await service.verify_one(
-            issue=issue, project_id=1, project_root=tmp_project,
+            issue=issue,
+            project_id=1,
+            project_root=tmp_project,
         )
         assert result["evidence_status"] == "failed"
         assert result["evidence_checks"]["path"] is False
@@ -269,7 +274,9 @@ class TestEvidenceService:
             "rule_id": "X-1",
         }
         result = await service.verify_one(
-            issue=issue, project_id=1, project_root=tmp_project,
+            issue=issue,
+            project_id=1,
+            project_root=tmp_project,
         )
         assert result["evidence_status"] == "failed"
         assert result["evidence_checks"]["lines"] is False
@@ -285,7 +292,9 @@ class TestEvidenceService:
             "rule_id": "X-1",
         }
         result = await service.verify_one(
-            issue=issue, project_id=1, project_root=tmp_project,
+            issue=issue,
+            project_id=1,
+            project_root=tmp_project,
         )
         assert result["evidence_status"] == "failed"
         assert result["evidence_checks"]["evidence"] is False
@@ -301,7 +310,9 @@ class TestEvidenceService:
             "rule_id": "X-1",
         }
         result = await service.verify_one(
-            issue=issue, project_id=1, project_root=tmp_project,
+            issue=issue,
+            project_id=1,
+            project_root=tmp_project,
         )
         assert result["evidence_status"] == "failed"
         assert result["evidence_checks"]["chunks"] is False
@@ -317,10 +328,14 @@ class TestEvidenceService:
             "rule_id": "R-001",
         }
         r1 = await service.verify_one(
-            issue=issue, project_id=1, project_root=tmp_project,
+            issue=issue,
+            project_id=1,
+            project_root=tmp_project,
         )
         r2 = await service.verify_one(
-            issue=issue, project_id=1, project_root=tmp_project,
+            issue=issue,
+            project_id=1,
+            project_root=tmp_project,
         )
         assert r1["fingerprint"] == r2["fingerprint"]
 
@@ -335,6 +350,8 @@ class TestEvidenceService:
             "rule_id": "X-1",
         }
         result = await service.verify_one(
-            issue=issue, project_id=1, project_root=tmp_project,
+            issue=issue,
+            project_id=1,
+            project_root=tmp_project,
         )
         assert result["evidence_status"] == "failed"

@@ -132,10 +132,7 @@ def build_review_graph(
     else:
 
         async def _noop_evidence(state: CodeReviewState) -> dict[str, Any]:
-            passed = [
-                {**i, "evidence_status": "passed"}
-                for i in state.current_issues
-            ]
+            passed = [{**i, "evidence_status": "passed"} for i in state.current_issues]
             na = "guard_critic" if passed else "advance_item"
             return {"current_issues": passed, "next_action": na}
 
@@ -156,10 +153,14 @@ def build_review_graph(
     # ── Edges ────────────────────────────────────────────────────────────
 
     # GuardPlanner → Planner | Report
-    builder.add_conditional_edges("guard_planner", route_guard_planner, {
-        "planner": "planner",
-        "report": "report",
-    })
+    builder.add_conditional_edges(
+        "guard_planner",
+        route_guard_planner,
+        {
+            "planner": "planner",
+            "report": "report",
+        },
+    )
 
     # Planner → InitItem (always)
     builder.add_edge("planner", "init_item")
@@ -168,59 +169,87 @@ def build_review_graph(
     builder.add_edge("init_item", "guard_retrieve")
 
     # GuardRetrieve → Retrieve | Report
-    builder.add_conditional_edges("guard_retrieve", route_guard_retrieve, {
-        "retrieve": "retrieve",
-        "report": "report",
-    })
+    builder.add_conditional_edges(
+        "guard_retrieve",
+        route_guard_retrieve,
+        {
+            "retrieve": "retrieve",
+            "report": "report",
+        },
+    )
 
     # Retrieve → GuardReview
     builder.add_edge("retrieve", "guard_review")
 
     # GuardReview → Review | Report
-    builder.add_conditional_edges("guard_review", route_guard_review, {
-        "review": "review",
-        "report": "report",
-    })
+    builder.add_conditional_edges(
+        "guard_review",
+        route_guard_review,
+        {
+            "review": "review",
+            "report": "report",
+        },
+    )
 
     # Review → ReviewDecision
     builder.add_edge("review", "review_decision")
 
     # ReviewDecision → AdvanceItem | RewriteQuery | EvidenceVerify
-    builder.add_conditional_edges("review_decision", route_review_decision, {
-        "advance_item": "advance_item",
-        "rewrite_query": "rewrite_query",
-        "evidence_verify": "evidence_verify",
-    })
+    builder.add_conditional_edges(
+        "review_decision",
+        route_review_decision,
+        {
+            "advance_item": "advance_item",
+            "rewrite_query": "rewrite_query",
+            "evidence_verify": "evidence_verify",
+        },
+    )
 
     # RewriteQuery → GuardRetrieve | AdvanceItem
-    builder.add_conditional_edges("rewrite_query", route_rewrite_query, {
-        "guard_retrieve": "guard_retrieve",
-        "advance_item": "advance_item",
-    })
+    builder.add_conditional_edges(
+        "rewrite_query",
+        route_rewrite_query,
+        {
+            "guard_retrieve": "guard_retrieve",
+            "advance_item": "advance_item",
+        },
+    )
 
     # EvidenceVerify → EvidenceDecision
     builder.add_edge("evidence_verify", "evidence_decision")
 
     # EvidenceDecision → AdvanceItem | GuardCritic
-    builder.add_conditional_edges("evidence_decision", route_evidence_decision, {
-        "advance_item": "advance_item",
-        "guard_critic": "guard_critic",
-    })
+    builder.add_conditional_edges(
+        "evidence_decision",
+        route_evidence_decision,
+        {
+            "advance_item": "advance_item",
+            "guard_critic": "guard_critic",
+        },
+    )
 
     # GuardCritic → Critic | Report
-    builder.add_conditional_edges("guard_critic", route_guard_critic, {
-        "critic": "critic",
-        "report": "report",
-    })
+    builder.add_conditional_edges(
+        "guard_critic",
+        route_guard_critic,
+        {
+            "critic": "critic",
+            "report": "report",
+        },
+    )
 
     # Critic → CriticDecision
     builder.add_edge("critic", "critic_decision")
 
     # CriticDecision → PrepareRereview | AdvanceItem
-    builder.add_conditional_edges("critic_decision", route_critic_decision, {
-        "guard_retrieve": "guard_retrieve",
-        "advance_item": "advance_item",
-    })
+    builder.add_conditional_edges(
+        "critic_decision",
+        route_critic_decision,
+        {
+            "guard_retrieve": "guard_retrieve",
+            "advance_item": "advance_item",
+        },
+    )
 
     # PrepareRereview → GuardReview
     builder.add_edge("prepare_rereview", "guard_review")
@@ -229,10 +258,14 @@ def build_review_graph(
     builder.add_edge("finalize_item", "advance_item")
 
     # AdvanceItem → InitItem | Report
-    builder.add_conditional_edges("advance_item", route_advance_item, {
-        "init_item": "init_item",
-        "report": "report",
-    })
+    builder.add_conditional_edges(
+        "advance_item",
+        route_advance_item,
+        {
+            "init_item": "init_item",
+            "report": "report",
+        },
+    )
 
     # Report → END
     builder.add_edge("report", END)

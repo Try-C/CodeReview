@@ -30,7 +30,9 @@ def _wrap_code_block(label: str, content: str) -> str:
 
 # ── Planner ──────────────────────────────────────────────────────────────────
 
-PLANNER_SYSTEM = _SYSTEM_PREAMBLE + """
+PLANNER_SYSTEM = (
+    _SYSTEM_PREAMBLE
+    + """
 
 You are the Planner agent.  Your job is to produce a bounded, prioritised
 review plan for a codebase based on the project's file summary.
@@ -46,6 +48,7 @@ Rules:
 
 Output format: a JSON object with an "items" array of ReviewItems.
 """
+)
 
 
 def build_planner_messages(file_summary: dict[str, Any]) -> list[dict[str, str]]:
@@ -68,7 +71,9 @@ def build_planner_messages(file_summary: dict[str, Any]) -> list[dict[str, str]]
 
 # ── Reviewer ─────────────────────────────────────────────────────────────────
 
-REVIEWER_SYSTEM = _SYSTEM_PREAMBLE + """
+REVIEWER_SYSTEM = (
+    _SYSTEM_PREAMBLE
+    + """
 
 You are the Review agent.  Your job is to examine code chunks assembled as
 context and identify concrete issues.
@@ -86,6 +91,7 @@ Rules:
 
 Output format: a JSON object with an "issues" array of IssueCandidate objects.
 """
+)
 
 
 def build_reviewer_messages(
@@ -109,15 +115,17 @@ def build_reviewer_messages(
     ]
 
     if critic_feedback:
-        user_parts.extend([
-            "",
-            "=== CRITIC FEEDBACK BEGIN ===",
-            critic_feedback,
-            "=== CRITIC FEEDBACK END ===",
-            "",
-            "The issues above were returned by the Critic for revision.  "
-            "Re-examine them carefully and produce corrected issues.",
-        ])
+        user_parts.extend(
+            [
+                "",
+                "=== CRITIC FEEDBACK BEGIN ===",
+                critic_feedback,
+                "=== CRITIC FEEDBACK END ===",
+                "",
+                "The issues above were returned by the Critic for revision.  "
+                "Re-examine them carefully and produce corrected issues.",
+            ]
+        )
 
     user_parts.append(
         "\nIdentify all issues in the context above.  "
@@ -133,7 +141,9 @@ def build_reviewer_messages(
 
 # ── Critic ───────────────────────────────────────────────────────────────────
 
-CRITIC_SYSTEM = _SYSTEM_PREAMBLE + """
+CRITIC_SYSTEM = (
+    _SYSTEM_PREAMBLE
+    + """
 
 You are the Critic agent.  Your job is to review issues that have already
 passed deterministic evidence verification and decide whether they are
@@ -147,6 +157,7 @@ Rules:
 
 Output format: a JSON object with a "decisions" array of CriticResult objects.
 """
+)
 
 
 def build_critic_messages(
@@ -194,17 +205,19 @@ def _format_issues_for_critic(issues: list[dict[str, Any]]) -> str:
 
     items: list[dict[str, Any]] = []
     for i in issues:
-        items.append({
-            "fingerprint": i.get("fingerprint", ""),
-            "title": i.get("title", ""),
-            "category": i.get("category", ""),
-            "issue_type": i.get("issue_type", ""),
-            "risk_level": i.get("risk_level", ""),
-            "relative_path": i.get("relative_path", ""),
-            "start_line": i.get("start_line", 0),
-            "end_line": i.get("end_line", 0),
-            "description": i.get("description", ""),
-            "evidence": i.get("evidence", ""),
-            "confidence": i.get("confidence", 0),
-        })
+        items.append(
+            {
+                "fingerprint": i.get("fingerprint", ""),
+                "title": i.get("title", ""),
+                "category": i.get("category", ""),
+                "issue_type": i.get("issue_type", ""),
+                "risk_level": i.get("risk_level", ""),
+                "relative_path": i.get("relative_path", ""),
+                "start_line": i.get("start_line", 0),
+                "end_line": i.get("end_line", 0),
+                "description": i.get("description", ""),
+                "evidence": i.get("evidence", ""),
+                "confidence": i.get("confidence", 0),
+            }
+        )
     return json.dumps(items, indent=2, ensure_ascii=False)
