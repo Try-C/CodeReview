@@ -71,6 +71,29 @@ class Settings(BaseSettings):
     max_top_k: int = Field(default=30, ge=1, le=100)
     rrf_k: int = Field(default=60, ge=1, le=1000)
 
+    # ── LLM / Agent / Graph (§5) ────────────────────────────────────────────
+    llm_provider: Literal["deepseek"] = "deepseek"
+    llm_base_url: str = "https://api.deepseek.com"
+    llm_model: str = "deepseek-v4-flash"
+    llm_benchmark_model: str = "deepseek-v4-pro"
+    llm_temperature: float = 0.0
+    deepseek_api_key: SecretStr | None = None
+
+    max_llm_calls: int = Field(default=30, ge=1)
+    max_token_budget: int = Field(default=100_000, ge=1)
+    langgraph_recursion_limit: int = Field(default=100, ge=1)
+    max_review_rounds: int = Field(default=2, ge=1, le=10)
+    max_retrieval_retries: int = Field(default=2, ge=0, le=10)
+    max_json_repair_retries: int = Field(default=1, ge=0, le=3)
+
+    # Pricing — environment-configured, never hardcoded in business logic (§5)
+    llm_input_price_per_million: str = "0"
+    llm_output_price_per_million: str = "0"
+    llm_pricing_currency: str = "USD"
+    llm_pricing_version: str = "unconfigured"
+    embedding_input_price_per_million: str = "0"
+    embedding_pricing_version: str = "unconfigured"
+
     @field_validator("api_v1_prefix")
     @classmethod
     def validate_api_prefix(cls, value: str) -> str:

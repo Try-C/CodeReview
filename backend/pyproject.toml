@@ -14,6 +14,8 @@ dependencies = [
   "celery[redis]>=5.6,<5.7",
   "fastapi>=0.139,<0.140",
   "httpx>=0.28,<0.29",
+  "langchain>=1.2,<1.4",
+  "langgraph>=1.0,<1.1",
   "pwdlib[argon2]>=0.3,<0.4",
   "pyjwt>=2.11,<3",
   "pydantic-settings>=2.14,<2.15",
@@ -31,6 +33,7 @@ dev = [
   "aiosqlite>=0.22,<0.23",
   "mypy>=2.1,<2.2",
   "pytest>=9.1,<9.2",
+  "pytest-asyncio>=1.2,<1.3",
   "pytest-cov>=7.1,<7.2",
   "ruff>=0.15,<0.16",
 ]
@@ -49,6 +52,10 @@ addopts = [
   "--cov-fail-under=85",
 ]
 testpaths = ["tests"]
+asyncio_mode = "auto"
+markers = [
+  "asyncio: mark a test as an async test",
+]
 
 [tool.coverage.run]
 source = ["app"]
