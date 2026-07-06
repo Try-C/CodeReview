@@ -23,7 +23,7 @@ function createRequestId(): string {
   return crypto.randomUUID()
 }
 
-export async function getJson<T>(
+export async function requestJson<T>(
   path: string,
   init: RequestInit = {},
 ): Promise<ApiResult<T>> {
@@ -35,7 +35,7 @@ export async function getJson<T>(
 
   const response = await fetch(`${apiBaseUrl}${path}`, {
     ...init,
-    method: 'GET',
+    method: init.method ?? 'GET',
     headers,
   })
   const requestId = response.headers.get('X-Request-ID') ?? callerRequestId
@@ -53,6 +53,46 @@ export async function getJson<T>(
 
   return {
     data: payload as T,
+    requestId,
+  }
+}
+
+export function getJson<T>(
+  path: string,
+  init: RequestInit = {},
+): Promise<ApiResult<T>> {
+  return requestJson<T>(path, { ...init, method: 'GET' })
+}
+
+export async function getText(
+  path: string,
+  init: RequestInit = {},
+): Promise<ApiResult<string>> {
+  const headers = new Headers(init.headers)
+  headers.set('Accept', 'text/markdown')
+
+  const callerRequestId = headers.get('X-Request-ID') ?? createRequestId()
+  headers.set('X-Request-ID', callerRequestId)
+
+  const response = await fetch(`${apiBaseUrl}${path}`, {
+    ...init,
+    method: 'GET',
+    headers,
+  })
+  const requestId = response.headers.get('X-Request-ID') ?? callerRequestId
+
+  if (!response.ok) {
+    const payload = (await response.json()) as Partial<ApiErrorResponse>
+    throw new ApiError(response.status, {
+      code: payload.code ?? 'HTTP_ERROR',
+      message: payload.message ?? 'Request failed',
+      request_id: payload.request_id ?? requestId,
+      details: payload.details ?? {},
+    })
+  }
+
+  return {
+    data: await response.text(),
     requestId,
   }
 }

@@ -10,6 +10,16 @@ const router = createRouter({
       name: 'home',
       component: HomeView,
     },
+    {
+      path: '/tasks/:taskId/progress',
+      name: 'task-progress',
+      component: () => import('@/views/TaskProgressView.vue'),
+    },
+    {
+      path: '/tasks/:taskId/report',
+      name: 'report',
+      component: () => import('@/views/ReportDetailView.vue'),
+    },
   ],
 })
 
