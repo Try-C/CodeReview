@@ -179,19 +179,12 @@ class ReviewWorkflowService:
     async def _retrieve(self, **kwargs: Any) -> dict[str, Any]:
         target_paths = tuple(str(path) for path in kwargs.pop("target_paths", ()))
         top_k = min(int(kwargs.pop("top_k", self._settings.top_k)), self._settings.max_top_k)
-        result = await self._retriever.retrieve(**kwargs)
+        result = await self._retriever.retrieve(
+            **kwargs,
+            target_paths=target_paths,
+            top_k=top_k,
+        )
         scored = list(result.chunks)
-        if target_paths:
-            scored = [
-                item
-                for item in scored
-                if any(
-                    item.chunk.relative_path == path.rstrip("/")
-                    or item.chunk.relative_path.startswith(path.rstrip("/") + "/")
-                    for path in target_paths
-                )
-            ]
-        scored = scored[:top_k]
         assembled = await self._context_assembler.assemble(scored)
         return {
             "context": "\n\n".join(item.format_for_llm() for item in assembled),

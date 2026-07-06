@@ -31,8 +31,11 @@ class AssembledContext:
 
     @property
     def estimated_tokens(self) -> int:
-        """Upper-bound UTF-8 byte estimate as a proxy for token count."""
-        return len(self.code.encode("utf-8")) + len(self.format_for_llm().encode("utf-8")) // 2
+        """Estimate tokens once from the complete formatted context."""
+        rendered = self.format_for_llm()
+        ascii_count = sum(character.isascii() for character in rendered)
+        non_ascii_count = len(rendered) - ascii_count
+        return max(1, (ascii_count + 3) // 4 + non_ascii_count)
 
     def format_for_llm(self) -> str:
         """Produce a compact textual representation suitable for an LLM context window."""
@@ -89,6 +92,8 @@ class ContextAssembler:
         *,
         max_token_budget: int = 100000,
     ) -> None:
+        if max_token_budget < 1:
+            raise ValueError("max_token_budget must be positive")
         self._sessions = sessions
         self._max_token_budget = max_token_budget
 
@@ -169,9 +174,10 @@ class ContextAssembler:
                 target_symbols=ch_target_symbols,
                 rrf_score=item.rrf_score,
             )
-            token_budget += ctx.estimated_tokens
-            if token_budget > self._max_token_budget:
-                break
+            estimated_tokens = ctx.estimated_tokens
+            if token_budget + estimated_tokens > self._max_token_budget:
+                continue
+            token_budget += estimated_tokens
             assembled.append(ctx)
 
         return tuple(assembled)

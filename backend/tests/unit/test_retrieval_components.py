@@ -6,6 +6,7 @@ from typing import Any
 from unittest.mock import AsyncMock, MagicMock
 
 from app.retrieval import fuse_rrf
+from app.retrieval.keyword_search import KEYWORD_SQL
 
 
 def _run(coro: Coroutine[Any, Any, Any]) -> Any:
@@ -83,8 +84,23 @@ class TestVectorSearcher:
         _run(searcher.search(session, query_vector=[0.1] * 1024, project_id=1, top_k=10))
         assert session.execute.called
 
+    def test_path_filter_uses_bound_exact_and_prefix_values(self) -> None:
+        from app.retrieval.vector_search import VectorSearcher
+
+        params: dict[str, object] = {}
+        clause = VectorSearcher._path_filter(("src\\auth",), params)
+
+        assert "relative_path = :path_0" in clause
+        assert params == {
+            "path_0": "src/auth",
+            "path_prefix_0": "src/auth/%",
+        }
+
 
 class TestKeywordSearcher:
+    def test_postgresql_query_filters_non_matches(self) -> None:
+        assert "search_vector @@ plainto_tsquery" in KEYWORD_SQL
+
     def test_returns_empty_for_zero_top_k(self) -> None:
         from app.retrieval.keyword_search import KeywordSearcher
 
@@ -100,3 +116,38 @@ class TestKeywordSearcher:
         session = AsyncMock()
         result = _run(searcher.search(session, query="   ", project_id=1, top_k=10))
         assert result == []
+
+
+def test_context_assembler_rejects_non_positive_budget() -> None:
+    import pytest
+
+    from app.retrieval import ContextAssembler
+
+    with pytest.raises(ValueError, match="positive"):
+        ContextAssembler(MagicMock(), max_token_budget=0)
+
+
+def test_hybrid_retriever_validates_constructor_and_call_limits() -> None:
+    import pytest
+
+    from app.retrieval import HybridRetriever
+
+    sessions = MagicMock()
+    provider = MagicMock()
+    with pytest.raises(ValueError, match="rrf_k"):
+        HybridRetriever(sessions, provider, rrf_k=0)
+
+    retriever = HybridRetriever(sessions, provider)
+    with pytest.raises(ValueError, match="top_k"):
+        _run(retriever.retrieve(task_id=1, project_id=1, query="query", top_k=31))
+    with pytest.raises(ValueError, match="retrieval_round"):
+        _run(retriever.retrieve(task_id=1, project_id=1, query="query", retrieval_round=0))
+    with pytest.raises(ValueError, match="review_item_key"):
+        _run(
+            retriever.retrieve(
+                task_id=1,
+                project_id=1,
+                query="query",
+                review_item_key="x" * 129,
+            )
+        )

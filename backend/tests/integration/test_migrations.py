@@ -92,11 +92,13 @@ def test_initial_migration_upgrades_and_downgrades(tmp_path: Path) -> None:
         "keyword_rank",
         "rrf_score",
         "selected",
+        "degradation_reason",
         "retrieval_round",
     }
     assert {index["name"] for index in inspector.get_indexes("retrieval_records")} == {
         "ix_retrieval_records_task_id",
         "ix_retrieval_records_query_hash",
+        "uq_retrieval_records_empty_attempt",
     }
     retrieval_record_unique = inspector.get_unique_constraints("retrieval_records")
     assert any(

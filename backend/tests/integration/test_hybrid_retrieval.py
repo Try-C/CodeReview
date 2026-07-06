@@ -476,6 +476,90 @@ def test_context_assembler_token_budget_truncation(tmp_path: Path) -> None:
     asyncio.run(_token_budget_scenario(tmp_path))
 
 
+def test_empty_retrieval_trace_is_persisted_once(tmp_path: Path) -> None:
+    asyncio.run(_empty_trace_scenario(tmp_path))
+
+
+async def _empty_trace_scenario(tmp_path: Path) -> None:
+    engine = create_async_engine(
+        f"sqlite+aiosqlite:///{(tmp_path / 'empty-trace.sqlite3').as_posix()}",
+        poolclass=NullPool,
+    )
+    async with engine.begin() as connection:
+        await connection.run_sync(Base.metadata.create_all)
+    sessions = async_sessionmaker(engine, expire_on_commit=False)
+    project_id, task_id = await _create_project_and_task(sessions)
+    retriever = HybridRetriever(sessions, FakeEmbeddingProvider())
+
+    first = await retriever.retrieve(
+        task_id=task_id,
+        project_id=project_id,
+        query="missing symbol",
+        review_item_key="empty-review",
+    )
+    second = await retriever.retrieve(
+        task_id=task_id,
+        project_id=project_id,
+        query=" missing symbol ",
+        review_item_key="empty-review",
+    )
+
+    assert first.query_hash == second.query_hash
+    assert not first.chunks
+    async with sessions() as session:
+        records = list(
+            await session.scalars(select(RetrievalRecord).where(RetrievalRecord.task_id == task_id))
+        )
+    assert len(records) == 1
+    assert records[0].chunk_id is None
+    assert records[0].degradation_reason == "symbol_ilike_no_match"
+    await engine.dispose()
+
+
+def test_target_paths_and_per_call_top_k_are_applied(tmp_path: Path) -> None:
+    asyncio.run(_path_and_top_k_scenario(tmp_path))
+
+
+async def _path_and_top_k_scenario(tmp_path: Path) -> None:
+    engine = create_async_engine(
+        f"sqlite+aiosqlite:///{(tmp_path / 'path-filter.sqlite3').as_posix()}",
+        poolclass=NullPool,
+    )
+    async with engine.begin() as connection:
+        await connection.run_sync(Base.metadata.create_all)
+    sessions = async_sessionmaker(engine, expire_on_commit=False)
+    project_id, task_id = await _create_project_and_task(sessions)
+    for index, path in enumerate(("src/auth.py", "tests/test_auth.py"), start=1):
+        file_id = await _create_file(sessions, project_id, path)
+        await _create_chunk(
+            sessions,
+            project_id=project_id,
+            file_id=file_id,
+            fingerprint=str(index) * 64,
+            content=f"def login_{index}():\n    return True",
+            symbol_name=f"login_{index}",
+            qualified_name=f"login_{index}",
+            symbol_type="function",
+            language="python",
+            embedding=_embedding_vector(index),
+            start_line=1,
+            end_line=2,
+            relative_path=path,
+        )
+
+    result = await HybridRetriever(sessions, FakeEmbeddingProvider()).retrieve(
+        task_id=task_id,
+        project_id=project_id,
+        query="login",
+        target_paths=("src",),
+        top_k=1,
+    )
+
+    assert len(result.chunks) == 1
+    assert result.chunks[0].chunk.relative_path == "src/auth.py"
+    await engine.dispose()
+
+
 async def _token_budget_scenario(tmp_path: Path) -> None:
     engine = create_async_engine(
         f"sqlite+aiosqlite:///{(tmp_path / 'budget.sqlite3').as_posix()}",
