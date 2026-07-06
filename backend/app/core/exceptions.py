@@ -25,12 +25,14 @@ class AppError(Exception):
         message: str,
         status_code: int,
         details: dict[str, Any] | None = None,
+        headers: dict[str, str] | None = None,
     ) -> None:
         super().__init__(message)
         self.code = code
         self.message = message
         self.status_code = status_code
         self.details = details or {}
+        self.headers = headers or {}
 
 
 def _request_id(request: Request) -> str:
@@ -44,6 +46,7 @@ def _error_response(
     code: str,
     message: str,
     details: dict[str, Any] | None = None,
+    headers: dict[str, str] | None = None,
 ) -> JSONResponse:
     request_id = _request_id(request)
     payload = ErrorResponse(
@@ -53,10 +56,12 @@ def _error_response(
         details=details or {},
     )
     header_name = cast(str, request.app.state.settings.request_id_header)
+    response_headers = dict(headers or {})
+    response_headers[header_name] = request_id
     return JSONResponse(
         status_code=status_code,
         content=payload.model_dump(mode="json"),
-        headers={header_name: request_id},
+        headers=response_headers,
     )
 
 
@@ -68,6 +73,7 @@ async def app_error_handler(request: Request, exc: AppError) -> JSONResponse:
         code=exc.code,
         message=exc.message,
         details=exc.details,
+        headers=exc.headers,
     )
 
 

@@ -42,6 +42,20 @@ def test_production_wildcard_cors_is_rejected() -> None:
         )
 
 
+def test_production_default_jwt_secret_is_rejected() -> None:
+    with pytest.raises(ValidationError, match="jwt_secret_key must be changed"):
+        Settings(_env_file=None, app_env="production")
+
+
+def test_production_short_jwt_secret_is_rejected() -> None:
+    with pytest.raises(ValidationError, match="at least 32 characters"):
+        Settings(
+            _env_file=None,
+            app_env="production",
+            jwt_secret_key="short-production-secret",
+        )
+
+
 def test_invalid_request_id_header_is_rejected() -> None:
     with pytest.raises(ValidationError, match="request_id_header"):
         Settings(_env_file=None, request_id_header="X Request ID")

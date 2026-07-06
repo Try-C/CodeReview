@@ -6,7 +6,7 @@ from dataclasses import dataclass
 from typing import Literal, Protocol
 
 from app.core.config import Settings
-from app.core.database import DatabaseHealthDependency
+from app.core.database import DatabaseDependency, SessionFactory
 from app.core.redis import RedisHealthDependency
 
 logger = logging.getLogger(__name__)
@@ -30,6 +30,7 @@ class RuntimeContext:
     """Own process-wide dependencies injected into the FastAPI application."""
 
     dependencies: tuple[HealthDependency, ...]
+    session_factory: SessionFactory | None = None
 
     async def health_checks(
         self,
@@ -81,9 +82,11 @@ class RuntimeContext:
 
 def build_runtime(settings: Settings) -> RuntimeContext:
     """Build production dependency adapters from validated settings."""
+    database = DatabaseDependency(settings.database_url.get_secret_value())
     return RuntimeContext(
         dependencies=(
-            DatabaseHealthDependency(settings.database_url.get_secret_value()),
+            database,
             RedisHealthDependency(settings.redis_url.get_secret_value()),
-        )
+        ),
+        session_factory=database.session_factory,
     )

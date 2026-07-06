@@ -49,6 +49,7 @@ Backend commands are run from `backend/` with Python 3.12:
 
 ```powershell
 python -m pip install -e ".[dev]"
+python -m alembic upgrade head
 python -m ruff check .
 python -m ruff format --check .
 python -m mypy app tests
