@@ -1,6 +1,6 @@
 <script setup lang="ts">
 /** Full review report page per spec §17.2. */
-import { ref, onMounted } from 'vue'
+import { computed, ref, onMounted } from 'vue'
 import { useRoute } from 'vue-router'
 import { ElMessage } from 'element-plus'
 import { fetchReport, fetchIssues, fetchReportMarkdown } from '@/api/reports'
@@ -14,6 +14,10 @@ const issues = ref<IssueDetail[]>([])
 const loading = ref(true)
 const drawerVisible = ref(false)
 const selectedIssue = ref<IssueDetail | null>(null)
+const stopReason = computed(() => {
+  const value = report.value?.coverage_summary.stop_reason
+  return typeof value === 'string' ? value : null
+})
 
 onMounted(async () => {
   try {
@@ -149,8 +153,8 @@ async function downloadMarkdown() {
             Duration:
             <strong>{{ report.metrics_summary.elapsed_seconds }}s</strong>
           </span>
-          <span v-if="report.stop_reason">
-            Stop reason: <strong>{{ report.stop_reason }}</strong>
+          <span v-if="stopReason">
+            Stop reason: <strong>{{ stopReason }}</strong>
           </span>
         </div>
       </section>
