@@ -75,6 +75,7 @@ python_version = "3.12"
 strict = true
 files = ["app", "tests"]
 plugins = ["pydantic.mypy"]
+mypy_path = [".."]
 
 [[tool.mypy.overrides]]
 module = "tests.*"

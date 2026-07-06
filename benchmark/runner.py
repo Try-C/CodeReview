@@ -11,7 +11,7 @@ import logging
 import os
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Protocol
+from typing import Any, Protocol
 
 from benchmark.metrics import (
     BenchmarkMetrics,
@@ -39,7 +39,7 @@ class GroundTruthEntry:
     vulnerable: bool = True
 
     @classmethod
-    def from_dict(cls, d: dict) -> GroundTruthEntry:
+    def from_dict(cls, d: dict[str, Any]) -> GroundTruthEntry:
         return cls(
             id=d["id"],
             language=d["language"],
@@ -67,7 +67,7 @@ class PredictionEntry:
     fingerprint: str = ""
 
     @classmethod
-    def from_dict(cls, d: dict) -> PredictionEntry:
+    def from_dict(cls, d: dict[str, Any]) -> PredictionEntry:
         return cls(
             relative_path=d["relative_path"],
             start_line=d.get("start_line", 0),

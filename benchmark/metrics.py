@@ -7,6 +7,7 @@ Decimal is not required for statistical summaries.
 """
 
 from dataclasses import dataclass, field
+from typing import Any
 
 
 @dataclass(frozen=True, slots=True)
@@ -44,7 +45,7 @@ class BenchmarkMetrics:
     recall_at_k_values: list[int] = field(default_factory=lambda: [5, 10, 20])
     matches: int = 0
 
-    def to_dict(self) -> dict:
+    def to_dict(self) -> dict[str, Any]:
         return {
             "precision": self.precision,
             "recall": self.recall,
