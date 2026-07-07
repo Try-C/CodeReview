@@ -11,7 +11,7 @@ from app.indexing.database import HnswSearchOptions
 from app.models.index import CodeChunk
 
 VECTOR_COSINE_SQL = """
-    SELECT id, 1 - (embedding <=> :query_vector::vector) AS similarity
+    SELECT id, 1 - (embedding <=> CAST(:query_vector AS vector)) AS similarity
     FROM code_chunks
     WHERE project_id = :project_id
       AND language = ANY(:languages)
@@ -19,7 +19,7 @@ VECTOR_COSINE_SQL = """
       AND embedding_status = 'ready'
       AND index_status = 'ready'
       {path_filter}
-    ORDER BY embedding <=> :query_vector::vector
+    ORDER BY embedding <=> CAST(:query_vector AS vector)
     LIMIT :top_k
 """
 

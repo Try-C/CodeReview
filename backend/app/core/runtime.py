@@ -114,7 +114,7 @@ def build_runtime(settings: Settings) -> RuntimeContext:
         session_factory=database.session_factory,
         project_storage=LocalProjectStorage(settings.upload_root),
         event_bus=redis,
-        task_dispatcher=CeleryTaskDispatcher(create_celery_app(settings)),
+        task_dispatcher=None,  # TaskRunner picks up pending tasks directly
         startup_checks=(
             PgVectorStartupCheck(
                 database.session_factory,

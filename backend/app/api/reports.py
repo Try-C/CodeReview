@@ -23,7 +23,7 @@ from app.core.security import AccessTokenService, authentication_error, get_toke
 from app.models.issue import ReviewIssue
 from app.models.report import ReviewReport
 
-router = APIRouter(prefix="/api/v1", tags=["reports"])
+router = APIRouter(tags=["reports"])
 bearer_scheme = HTTPBearer(auto_error=False)
 SessionDep = Annotated[AsyncSession, Depends(get_session)]
 BearerDep = Annotated[
@@ -52,7 +52,9 @@ async def get_report(
     user_id: Annotated[int, Depends(_require_user)],
 ) -> dict[str, Any]:
     """Return the full report for a review task (JSON)."""
-    report = await session.get(ReviewReport, task_id)
+    report = await session.scalar(
+        select(ReviewReport).where(ReviewReport.task_id == task_id)
+    )
     if report is None:
         raise AppError(
             code="REPORT_NOT_FOUND",
@@ -171,7 +173,7 @@ async def submit_feedback(
             status_code=404,
         )
     new_status = feedback.get("status")
-    if new_status in ("confirmed", "false_positive", "dismissed"):
+    if new_status in ("confirmed", "false_positive", "dismissed", "needs_review"):
         issue.status = new_status
         await session.commit()
     return {"id": issue.id, "status": issue.status}
@@ -185,7 +187,9 @@ async def export_report(
     format: str = Query("markdown"),
 ) -> PlainTextResponse:
     """Export the report in the requested format (markdown only for M11)."""
-    report = await session.get(ReviewReport, task_id)
+    report = await session.scalar(
+        select(ReviewReport).where(ReviewReport.task_id == task_id)
+    )
     if report is None:
         raise AppError(
             code="REPORT_NOT_FOUND",

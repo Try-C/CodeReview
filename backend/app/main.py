@@ -13,6 +13,7 @@ from app.core.exceptions import register_exception_handlers
 from app.core.logging import configure_logging
 from app.core.middleware import RequestContextMiddleware
 from app.core.runtime import RuntimeContext, build_runtime
+from app.tasks.runner import TaskRunner
 
 logger = logging.getLogger(__name__)
 
@@ -31,8 +32,14 @@ def create_app(
 
     @asynccontextmanager
     async def lifespan(_: FastAPI) -> AsyncIterator[None]:
+        runner = TaskRunner(
+                runtime_settings,
+                session_factory=runtime_context.session_factory,
+                event_bus=runtime_context.event_bus,
+            )
         try:
             await runtime_context.validate_startup()
+            await runner.start()
             logger.info(
                 "application_started",
                 extra={
@@ -42,6 +49,7 @@ def create_app(
             )
             yield
         finally:
+            await runner.stop()
             await runtime_context.close()
             logger.info(
                 "application_stopped",

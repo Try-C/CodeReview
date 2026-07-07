@@ -139,41 +139,41 @@ class TaskService:
     async def _ensure_dispatched(self, task: ReviewTask) -> ReviewTask:
         if task.celery_task_id is not None or task.status in TERMINAL_TASK_STATUSES:
             return task
-        if self._dispatcher is None:
-            raise RuntimeError("Task dispatcher is not configured")
-        try:
-            task.celery_task_id = await self._dispatcher.dispatch_review(task.id)
-            await self._session.commit()
-            await self._session.refresh(task)
-            return task
-        except Exception as exc:
-            task_id = task.id
-            await self._session.rollback()
-            failed_task = await self._session.get(ReviewTask, task_id)
-            if failed_task is not None:
-                failed_task.status = "failed"
-                failed_task.current_stage = "queued"
-                failed_task.error_code = "TASK_DISPATCH_FAILED"
-                failed_task.error_message = "Review task could not be queued"
-                failed_task.finished_at = datetime.now(UTC)
-                event = TaskEvent(
-                    task_id=failed_task.id,
-                    event_type="final",
-                    stage="queued",
-                    progress=failed_task.progress,
-                    message="Review task dispatch failed",
-                    metadata_={"status": "failed", "error_code": "TASK_DISPATCH_FAILED"},
-                )
-                self._session.add(event)
+        if self._dispatcher is not None:
+            try:
+                task.celery_task_id = await self._dispatcher.dispatch_review(task.id)
                 await self._session.commit()
-                await self._session.refresh(event)
-                await self._publish(event)
-            raise AppError(
-                code="TASK_DISPATCH_FAILED",
-                message="Review task could not be queued",
-                status_code=503,
-                details={"task_id": failed_task.id if failed_task is not None else None},
-            ) from exc
+                await self._session.refresh(task)
+                return task
+            except Exception as exc:
+                task_id = task.id
+                await self._session.rollback()
+                failed_task = await self._session.get(ReviewTask, task_id)
+                if failed_task is not None:
+                    failed_task.status = "failed"
+                    failed_task.current_stage = "queued"
+                    failed_task.error_code = "TASK_DISPATCH_FAILED"
+                    failed_task.error_message = "Review task could not be queued"
+                    failed_task.finished_at = datetime.now(UTC)
+                    event = TaskEvent(
+                        task_id=failed_task.id,
+                        event_type="final",
+                        stage="queued",
+                        progress=failed_task.progress,
+                        message="Review task dispatch failed",
+                        metadata_={"status": "failed", "error_code": "TASK_DISPATCH_FAILED"},
+                    )
+                    self._session.add(event)
+                    await self._session.commit()
+                    await self._session.refresh(event)
+                    await self._publish(event)
+                raise AppError(
+                    code="TASK_DISPATCH_FAILED",
+                    message="Review task could not be queued",
+                    status_code=503,
+                ) from exc
+        # No dispatcher configured — TaskRunner polls for pending tasks directly.
+        return task
 
     async def _require_owned_project(self, project_id: int, user_id: int) -> None:
         project_id_result = await self._session.scalar(

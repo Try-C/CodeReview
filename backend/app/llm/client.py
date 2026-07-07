@@ -130,7 +130,11 @@ class LLMClient:
             raise LLMClientError(f"DeepSeek API returned status {response.status_code}")
 
         body = response.json()
-        choice = body["choices"][0]
+        choices = body.get("choices", [])
+        if not choices:
+            logger.error("llm_api_empty_choices status=%d body_keys=%s", response.status_code, list(body.keys()))
+            raise LLMClientError(f"DeepSeek API returned {response.status_code} with empty choices array")
+        choice = choices[0]
         usage = body.get("usage", {})
         input_tokens = usage.get("prompt_tokens", 0)
         output_tokens = usage.get("completion_tokens", 0)

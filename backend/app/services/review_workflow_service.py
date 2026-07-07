@@ -237,15 +237,31 @@ class ReviewWorkflowService:
         project: Project,
         result: dict[str, Any],
     ) -> None:
-        metrics = await self._aggregate_usage(task_snapshot.id)
+        try:
+            metrics = await self._aggregate_usage(task_snapshot.id)
+        except Exception:
+            logger.exception(
+                "aggregate_usage_failed — proceeding with zero metrics",
+                extra={"task_id": task_snapshot.id},
+            )
+            metrics = {
+                "llm_call_count": 0,
+                "input_tokens": 0,
+                "output_tokens": 0,
+                "estimated_cost": None,
+                "cost_status": "unavailable",
+                "pricing_summary": {},
+            }
         report_service = ReportService()
         finished_at = datetime.now(UTC)
+        verified = result.get("verified_issues", [])
+        rejected = result.get("rejected_issues", [])
         report_data = report_service.build(
             task_id=task_snapshot.id,
             project_id=project.id,
             project_name=project.project_name,
-            verified_issues=result.get("verified_issues", []),
-            rejected_issues=result.get("rejected_issues", []),
+            verified_issues=verified,
+            rejected_issues=rejected,
             coverage_summary=result.get("coverage_summary", {}),
             degradation_summary={
                 "stop_reason": result.get("stop_reason"),
@@ -265,41 +281,45 @@ class ReviewWorkflowService:
         markdown = report_service.render_markdown(report_data, summary)
 
         async with self._sessions() as session:
-            task = await session.get(ReviewTask, task_snapshot.id)
-            if task is None:
-                raise RuntimeError("Review task disappeared before result persistence")
-            await self._replace_issues(
-                session,
-                task_id=task.id,
-                project_id=project.id,
-                issues=result.get("verified_issues", []) + result.get("rejected_issues", []),
-            )
-            report = await session.scalar(
-                select(ReviewReport).where(ReviewReport.task_id == task.id)
-            )
-            if report is None:
-                report = ReviewReport(
+            try:
+                task = await session.get(ReviewTask, task_snapshot.id)
+                if task is None:
+                    raise RuntimeError("Review task disappeared before result persistence")
+                await self._replace_issues(
+                    session,
                     task_id=task.id,
                     project_id=project.id,
-                    report_content=markdown,
+                    issues=verified + rejected,
                 )
-                session.add(report)
-            report.summary = summary
-            report.report_content = markdown
-            report.severity_stats = report_data.severity_stats
-            report.issue_type_stats = report_data.issue_type_stats
-            report.coverage_summary = report_data.coverage_summary
-            report.metrics_summary = report_data.metrics_summary
-            report.degradation_summary = report_data.degradation_summary
+                report = await session.scalar(
+                    select(ReviewReport).where(ReviewReport.task_id == task.id)
+                )
+                if report is None:
+                    report = ReviewReport(
+                        task_id=task.id,
+                        project_id=project.id,
+                        report_content=markdown,
+                    )
+                    session.add(report)
+                report.summary = summary
+                report.report_content = markdown
+                report.severity_stats = report_data.severity_stats
+                report.issue_type_stats = report_data.issue_type_stats
+                report.coverage_summary = report_data.coverage_summary
+                report.metrics_summary = report_data.metrics_summary
+                report.degradation_summary = report_data.degradation_summary
 
-            task.llm_call_count = metrics["llm_call_count"]
-            task.input_tokens = metrics["input_tokens"]
-            task.output_tokens = metrics["output_tokens"]
-            task.estimated_cost = metrics["estimated_cost"]
-            task.cost_status = metrics["cost_status"]
-            task.pricing_summary = metrics["pricing_summary"]
-            task.fallback_reason = result.get("stop_reason")
-            await session.commit()
+                task.llm_call_count = metrics["llm_call_count"]
+                task.input_tokens = metrics["input_tokens"]
+                task.output_tokens = metrics["output_tokens"]
+                task.estimated_cost = metrics["estimated_cost"]
+                task.cost_status = metrics["cost_status"]
+                task.pricing_summary = metrics["pricing_summary"]
+                task.fallback_reason = result.get("stop_reason")
+                await session.commit()
+            except Exception:
+                await session.rollback()
+                raise
 
     async def _replace_issues(
         self,
@@ -319,28 +339,28 @@ class ReviewWorkflowService:
         seen: set[str] = set()
         for issue in issues:
             fp = str(issue.get("fingerprint", ""))
-            if fp in seen:
+            if not fp or fp in seen:
                 continue
             seen.add(fp)
             row = ReviewIssue(
                 task_id=task_id,
                 project_id=project_id,
-                fingerprint=str(issue["fingerprint"]),
-                title=str(issue["title"]),
-                category=str(issue["category"]),
-                issue_type=str(issue["issue_type"]),
-                risk_level=str(issue["risk_level"]),
+                fingerprint=fp,
+                title=str(issue.get("title", "")),
+                category=str(issue.get("category", "bug")),
+                issue_type=str(issue.get("issue_type", "")),
+                risk_level=str(issue.get("risk_level", "Medium")),
                 rule_id=issue.get("rule_id"),
                 cwe_id=issue.get("cwe_id"),
-                relative_path=str(issue["relative_path"]),
-                start_line=int(issue["start_line"]),
-                end_line=int(issue["end_line"]),
-                evidence=str(issue["evidence"]),
-                description=str(issue["description"]),
-                reason=str(issue["reason"]),
-                suggestion=str(issue["suggestion"]),
+                relative_path=str(issue.get("relative_path", "")),
+                start_line=int(issue.get("start_line", 1)),
+                end_line=int(issue.get("end_line", 1)),
+                evidence=str(issue.get("evidence", "")),
+                description=str(issue.get("description", "")),
+                reason=str(issue.get("reason", "")),
+                suggestion=str(issue.get("suggestion", "")),
                 fixed_example=issue.get("fixed_example"),
-                confidence=float(issue["confidence"]),
+                confidence=float(issue.get("confidence", 0.5)),
                 evidence_status=str(issue.get("evidence_status", "passed")),
                 critic_decision=issue.get("critic_decision"),
                 critic_reason=issue.get("critic_reason"),
@@ -400,8 +420,8 @@ class ReviewWorkflowService:
 
         return {
             "llm_call_count": llm_call_count,
-            "input_tokens": sum(row.input_tokens for row in rows),
-            "output_tokens": sum(row.output_tokens for row in llm_rows),
+            "input_tokens": sum(row.input_tokens or 0 for row in rows),
+            "output_tokens": sum(row.output_tokens or 0 for row in llm_rows),
             "estimated_cost": estimated_cost,
             "cost_status": cost_status,
             "pricing_summary": dict(pricing_groups),

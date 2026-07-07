@@ -10,6 +10,7 @@ BudgetGuard (§12.4) checks four conditions before allowing an LLM call:
 
 from __future__ import annotations
 
+import hashlib
 import logging
 from collections.abc import Awaitable, Callable
 from dataclasses import dataclass
@@ -264,6 +265,7 @@ class EvidenceVerifyNode:
                 issue_copy = dict(issue)
                 issue_copy["evidence_status"] = "error"
                 issue_copy["evidence_checks"] = {"error": str(exc)}
+                issue_copy["fingerprint"] = _build_fingerprint(issue_copy)
                 verified.append(issue_copy)
 
         # Split: passed vs failed.
@@ -439,6 +441,22 @@ def _append_unique(
         if fp:
             merged[fp] = item
     return list(merged.values())
+
+
+def _build_fingerprint(issue: dict[str, Any]) -> str:
+    """SHA-256 of (normalised_path + start_line + end_line + rule_id + evidence_hash).
+
+    Mirrors EvidenceService._build_fingerprint so the graph layer can produce
+    fingerprints without importing the service module.
+    """
+    path = PurePosixPath(str(issue.get("relative_path", "")).replace("\\", "/")).as_posix()
+    start = str(issue.get("start_line", 0))
+    end = str(issue.get("end_line", 0))
+    rule = str(issue.get("rule_id", ""))
+    evidence = str(issue.get("evidence", ""))
+    evidence_hash = hashlib.sha256(evidence.encode()).hexdigest()
+    raw = "\0".join((path, start, end, rule, evidence_hash))
+    return hashlib.sha256(raw.encode()).hexdigest()
 
 
 def _build_feedback(failed: list[dict[str, Any]]) -> str:

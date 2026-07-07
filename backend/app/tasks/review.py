@@ -5,7 +5,7 @@ from decimal import Decimal
 
 import httpx
 
-from app.core.config import get_settings
+from app.core.config import Settings, get_settings
 from app.core.database import DatabaseDependency
 from app.core.redis import RedisDependency
 from app.indexing import (
@@ -43,6 +43,15 @@ async def _run_review_pipeline(task_id: int) -> None:
         settings.redis_url.get_secret_value(),
         stream_max_length=settings.task_event_stream_max_length,
     )
+    await run_review_pipeline_for_task(settings, database, redis, task_id)
+
+
+async def run_review_pipeline_for_task(
+    settings: Settings,
+    database: DatabaseDependency,
+    redis: RedisDependency,
+    task_id: int,
+) -> None:
     storage = LocalProjectStorage(settings.upload_root)
     scanner = FileScanner(
         storage,

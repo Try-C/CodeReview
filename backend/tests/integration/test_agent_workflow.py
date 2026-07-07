@@ -47,8 +47,9 @@ class WorkflowLLMProvider:
         *,
         temperature: float | None = None,
         max_tokens: int | None = None,
+        json_mode: bool = False,
     ) -> LLMCallResult:
-        del temperature, max_tokens
+        del temperature, max_tokens, json_mode
         system = messages[0]["content"]
         if "Planner agent" in system:
             content = json.dumps(
